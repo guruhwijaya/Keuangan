@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Catatan Utang</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--tx:#1d2330;--mut:#6b7280;--pri:#0a84ff;--red:#d90f0f;--grn:#1fb98a;--ln:#e6e8ec;--chip:#e8e9ec;--av:#6cb4ff;--yel:#f8b400;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12151b;--card:#1c2029;--tx:#eef0f4;--mut:#9aa1ae;--ln:#2b303b;--chip:#2a2f3a}}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,Roboto,sans-serif;max-width:480px;margin:0 auto;min-height:100vh;padding-bottom:90px}
+header{background:var(--pri);color:#fff;padding:16px;display:flex;align-items:center;gap:12px;font-weight:600;font-size:18px}
+header .sp{flex:1}.pill{background:#fff;color:var(--pri);border-radius:20px;padding:6px 12px;font-size:13px;font-weight:500;display:flex;gap:8px;align-items:center}
+.pill b{background:var(--red);color:#fff;border-radius:50%;width:22px;height:22px;display:grid;place-items:center;font-size:12px}
+.sum{margin:14px;background:var(--card);border-radius:12px;box-shadow:0 2px 8px #0002;display:grid;grid-template-columns:1fr 1fr;text-align:center}
+.sum div{padding:14px 8px}.sum div+div{border-left:1px solid var(--ln)}.sum small{font-size:13px}.sum p{margin:4px 0 0;font-size:22px;font-weight:700}
+.g{color:var(--grn)}.r{color:var(--red)}
+.search{padding:0 14px 8px}input,select{width:100%;padding:12px;border:1px solid var(--ln);border-radius:10px;background:var(--card);color:var(--tx);font:inherit}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:6px 14px 12px}.chip{white-space:nowrap;border:0;border-radius:20px;padding:10px 16px;background:var(--chip);color:var(--pri);font:inherit}.chip.on{background:var(--pri);color:#fff;font-weight:600}
+.row{display:flex;align-items:center;gap:14px;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--ln);cursor:pointer}
+.av{width:44px;height:44px;border-radius:50%;background:var(--av);color:#fff;display:grid;place-items:center;font-size:20px;flex:none}
+.nm{flex:1;font-size:17px}.am{text-align:right;font-weight:600;font-size:17px}.am small{display:block;font-weight:400;font-size:12px;color:var(--mut)}
+.late{font-size:11px;color:var(--red);display:block}
+.fab{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom,0px));right:max(16px,calc(50% - 224px));background:var(--yel);color:#222;border:0;border-radius:30px;padding:16px 24px;font-weight:700;letter-spacing:1px;box-shadow:0 4px 10px #0004;font-size:14px}
+.empty{text-align:center;color:var(--mut);padding:40px}
+.dh{background:var(--pri);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px}.dh button{background:none;border:0;color:#fff;font-size:24px}
+.big{background:var(--card);margin:14px;border-radius:12px;padding:16px;text-align:center;box-shadow:0 2px 8px #0002}.big p{font-size:28px;font-weight:700;margin:4px 0}
+.acts{display:flex;gap:10px;margin:0 14px 12px}.acts button,.btn{flex:1;border:0;border-radius:10px;padding:13px;font:inherit;font-weight:600;color:#fff}
+.tx{display:flex;justify-content:space-between;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--ln)}.tx small{color:var(--mut);display:block}
+.mask{position:fixed;inset:0;background:#0006;display:flex;align-items:flex-end;justify-content:center;z-index:9}
+.sheet{background:var(--card);width:100%;max-width:480px;border-radius:18px 18px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));display:grid;gap:10px}
+.sheet h3{margin:0}.seg{display:flex;gap:8px}.seg button{flex:1;padding:10px;border-radius:10px;border:1px solid var(--ln);background:var(--card);color:var(--tx);font:inherit}.seg .on{background:var(--pri);color:#fff;border-color:var(--pri)}
+label{font-size:13px;color:var(--mut)}.del{background:none;border:0;color:var(--red);padding:10px;font:inherit}
+.tabs{display:flex;background:var(--card);border-bottom:1px solid var(--ln)}.tabs button{flex:1;padding:14px 2px;border:0;background:none;color:var(--mut);font:inherit;font-size:13px;font-weight:600;border-bottom:3px solid transparent}.tabs .on{color:var(--pri);border-bottom-color:var(--pri)}
+</style></head><body>
+<div id="app"></div>
+<script>
+const KEY='catatan-utang-v1';
+const day=n=>{const d=new Date();d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
+const today=day(0);
+let S={biz:'Toko Saya',c:[]};
+try{const r=localStorage.getItem(KEY);if(r)S=JSON.parse(r);else throw 0}catch(e){
+S.c=[]}
+S.loans=S.loans||[];S.sv=S.sv||[];
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}if(window.cloudSave)cloudSave()};
+const itm=c=>0;
+const rp=n=>'Rp'+Math.abs(n).toLocaleString('id-ID');
+const bal=c=>c.tx.reduce((s,x)=>s+(x.t==='u'?x.a:-x.a),0);
+const dueState=c=>{if(bal(c)<=0)return '';const ds=c.tx.filter(x=>x.t==='u'&&x.due).map(x=>x.due).sort();if(!ds.length)return '';return ds[0]<today?'late':ds[0]===today?'today':''};
+const esc=s=>String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+let view='list',filter='all',q='',cur=null,tab='debt',lsq='',lf='out',lcur=null,scur=null,so='new',mv='menu';
+const tabbar=()=>`<div class="tabs"><button class="${tab==='debt'?'on':''}" onclick="tab='debt';view='list';render()">Utang</button><button class="${tab==='loan'?'on':''}" onclick="tab='loan';lcur=null;render()">Pinjam Barang</button><button class="${tab==='sv'?'on':''}" onclick="tab='sv';scur=null;render()">Tabungan</button><button class="${tab==='more'?'on':''}" onclick="tab='more';mv='menu';render()">Lainnya</button></div>`;
+const chips=[['all','Semua'],['owe','Utang Pelanggan'],['paid','Lunas']];
+function render(){const el=document.getElementById('app');el.innerHTML=tab==='more'?more():tab==='sv'?(scur?svDetail():tabbar()+svList()):tab==='loan'?(lcur?loanDetail():tabbar()+loansG()):view==='list'?tabbar()+list():detail()}
+function list(){
+ const bs=S.c.map(bal);const up=bs.filter(b=>b>0).reduce((a,b)=>a+b,0),us=-bs.filter(b=>b<0).reduce((a,b)=>a+b,0);
+ 
+ let cs=S.c.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())).filter(c=>{const b=bal(c);return filter==='all'||(filter==='owe'&&b>0)||(filter==='paid'&&b===0)});cs=sortC(cs);
+ return `<header><span class="sp">${esc(S.biz)}</span></header>
+ <div class="sum"><div><small>Utang Saya</small><p class="g">${rp(us)}</p></div><div><small>Utang Pelanggan</small><p class="r">${rp(up)}</p></div></div>
+ <div class="search"><input placeholder="Cari ${S.c.length} pelanggan" value="${esc(q)}" oninput="q=this.value;render();const i=document.querySelector('.search input');i.focus();i.setSelectionRange(q.length,q.length)"></div>
+ <div class="chips">${chips.map(([k,l])=>`<button class="chip ${filter===k?'on':''}" onclick="filter='${k}';render()">${l}</button>`).join('')}</div>
+ <div class="search" style="padding-top:0"><select onchange="so=this.value;render()"><option value="new" ${so==='new'?'selected':''}>Urutkan: Terbaru</option><option value="big" ${so==='big'?'selected':''}>Urutkan: Utang terbesar</option><option value="az" ${so==='az'?'selected':''}>Urutkan: Nama A–Z</option></select></div>
+ ${cs.length?cs.map(c=>{const b=bal(c);return `<div class="row" onclick="cur=${c.id};view='detail';render()"><div class="av">${esc(c.name[0]||'?').toUpperCase()}</div><div class="nm">${esc(c.name)}</div><div class="am ${b>0?'r':'g'}">${b>0?rp(b):b<0?rp(b):'Rp 0'}<small>${b>0?'Utang Pelanggan':b<0?'Utang Saya':'Lunas'}</small>${itm(c)>0?`<small style="color:var(--pri)">Pinjam ${itm(c)} barang</small>`:''}</div></div>`}).join(''):'<div class="empty">Belum ada data</div>'}
+ <button class="fab" onclick="sheet()">+ CATAT UTANG</button>`}
+function detail(){const c=S.c.find(x=>x.id===cur);if(!c){view='list';return list()}const b=bal(c);
+ return `<div class="dh"><button onclick="view='list';render()">←</button><span style="font-size:18px;font-weight:600">${esc(c.name)}</span></div>
+ <div class="big"><small>${b>0?'Utang Pelanggan':b<0?'Utang Saya':'Lunas'}</small><p class="${b>0?'r':'g'}">${rp(b)}</p>${itm(c)>0?`<small style="color:var(--pri)">Pinjam ${itm(c)} barang</small>`:''}</div>
+ <div class="acts"><button style="background:var(--red)" onclick="sheet(${c.id},'u')">Beri Utang</button><button style="background:var(--grn)" onclick="sheet(${c.id},'b')">Terima Bayar</button></div>
+ ${c.tx.map((x,i)=>({x,i})).reverse().map(({x,i})=>`<div class="tx" style="cursor:pointer" onclick="editTx(${c.id},${i})"><div>${x.a?(x.t==='u'?'Utang':'Pembayaran'):'Catatan'}${x.n?' · '+esc(x.n):''}${x.q?' · '+x.q+' barang':''}<small>${x.d}</small></div><b class="${x.t==='u'?'r':'g'}">${x.a?(x.t==='u'?'+':'−')+rp(x.a):''}</b></div>`).join('')||'<div class="empty">Belum ada transaksi</div>'}
+ <div style="text-align:center"><button class="del" onclick="ask('Hapus pelanggan ini?',()=>{S.c=S.c.filter(x=>x.id!==${c.id});save();view='list';render()})">Hapus pelanggan</button></div>`}
+function sheet(id,t){
+ const m=document.createElement('div');m.className='mask';
+ m.innerHTML=`<div class="sheet"><h3>Catat Utang</h3>
+ ${id?'':'<label>Pelanggan</label><select id="sc">'+S.c.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')+'<option value="new">+ Pelanggan baru</option></select><input id="nn" placeholder="Nama pelanggan baru" style="display:none">'}
+ <div class="seg"><button id="bu" class="on">Beri Utang</button><button id="bb">Terima Bayar</button></div>
+ <label>Jumlah (Rp)</label><input id="am" type="number" inputmode="numeric" placeholder="0">
+ <label>Catatan</label><input id="no" placeholder="Opsional">
+ <label>Tanggal</label><input id="dt" type="date" value="${today}">
+ <div style="display:flex;gap:8px"><button class="btn" style="background:var(--mut)" id="cx">Batal</button><button class="btn" style="background:var(--pri)" id="ok">Simpan</button></div></div>`;
+ document.body.appendChild(m);const $=i=>m.querySelector('#'+i);let ty=t||'u';
+ const sync=()=>{$('bu').className=ty==='u'?'on':'';$('bb').className=ty==='b'?'on':''};sync();
+ $('bu').onclick=()=>{ty='u';sync()};$('bb').onclick=()=>{ty='b';sync()};
+ if(!id){const f=()=>{$('nn').style.display=($('sc').value==='new'||!S.c.length)?'block':'none'};if(!S.c.length)$('sc').value='new';$('sc').onchange=f;f()}
+ $('cx').onclick=()=>m.remove();m.onclick=e=>{if(e.target===m)m.remove()};
+ $('ok').onclick=()=>{const a=parseInt($('am').value);if(a<0||(!a&&!$('no').value.trim()))return alert('Isi jumlah atau catatan');
+  let c;if(id)c=S.c.find(x=>x.id===id);else if($('sc').value==='new'){const n=$('nn').value.trim();if(!n)return alert('Isi nama');c={id:Date.now(),name:n,tx:[]};S.c.unshift(c)}else c=S.c.find(x=>x.id==$('sc').value);
+  c.tx.push({t:ty,a:a||0,n:$('no').value.trim(),d:$('dt').value||today});save();m.remove();render()}}
+function loans(){
+ const L=S.loans,sm=a=>a.reduce((s,l)=>s+l.qty,0),out=L.filter(l=>!l.back);
+ const ls=L.filter(l=>(l.person+' '+l.item).toLowerCase().includes(lsq.toLowerCase())).filter(l=>lf==='all'||(lf==='out'&&!l.back)||(lf==='back'&&l.back));
+ return `<header><span class="sp">Pinjam Barang</span></header>
+ <div class="sum"><div><small>Belum Kembali</small><p class="r">${sm(out)}</p></div><div><small>Sudah Kembali</small><p class="g">${sm(L.filter(l=>l.back))}</p></div></div>
+ <div class="search"><input placeholder="Cari peminjam / barang" value="${esc(lsq)}" oninput="lsq=this.value;render();const i=document.querySelector('.search input');i.focus();i.setSelectionRange(lsq.length,lsq.length)"></div>
+ <div class="chips">${[['out','Belum Kembali'],['back','Sudah Kembali'],['all','Semua']].map(([k,l])=>`<button class="chip ${lf===k?'on':''}" onclick="lf='${k}';render()">${l}</button>`).join('')}</div>
+ ${ls.length?ls.slice().reverse().map(l=>`<div class="row" onclick="loanSheet(${l.id})"><div class="av">${esc(l.person[0]||'?').toUpperCase()}</div><div class="nm">${esc(l.person)}<small style="display:block;color:var(--mut);font-size:13px">${esc(l.item)} · ${l.qty} pcs · ${l.date}</small></div><div class="am ${l.back?'g':'r'}">${l.back?'Kembali':'Belum'}<small>${l.back?l.bd:'kembali'}</small></div></div>`).join(''):'<div class="empty">Belum ada data pinjaman barang</div>'}
+ <button class="fab" onclick="loanSheet()">+ PINJAM BARANG</button>`}
+function loanSheet(id,pp){
+ const l=id?S.loans.find(x=>x.id===id):null;
+ const names=[...new Set(S.loans.map(x=>x.person).concat(S.c.map(c=>c.name)))];
+ const m=document.createElement('div');m.className='mask';
+ m.innerHTML=`<div class="sheet"><h3>${l?'Edit Pinjaman':'Pinjam Barang'}</h3>
+ <label>Nama peminjam</label><input id="lp" list="pn" value="${l?esc(l.person):esc(pp||'')}"><datalist id="pn">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
+ <label>Nama barang</label><input id="li" value="${l?esc(l.item):''}">
+ <label>Jumlah</label><input id="lqty" type="number" inputmode="numeric" value="${l?l.qty:1}">
+ <label>Tanggal pinjam</label><input id="ld" type="date" value="${l?l.date:today}">
+ <div style="display:flex;gap:8px"><button class="btn" style="background:var(--mut)" id="cx">Batal</button><button class="btn" style="background:var(--pri)" id="ok">Simpan</button></div>
+ ${l?`<button class="btn" style="background:var(--grn)" id="bk">${l.back?'Tandai belum kembali':'Tandai sudah kembali'}</button><button class="del" id="dl">Hapus</button>`:''}</div>`;
+ document.body.appendChild(m);const $=k=>m.querySelector('#'+k);
+ $('cx').onclick=()=>m.remove();m.onclick=e=>{if(e.target===m)m.remove()};
+ $('ok').onclick=()=>{const person=$('lp').value.trim(),item=$('li').value.trim(),qty=parseInt($('lqty').value)||1,date=$('ld').value||today;
+  if(!person||!item)return alert('Isi nama peminjam dan barang');
+  if(l)Object.assign(l,{person,item,qty,date});else S.loans.push({id:Date.now(),person,item,qty,date,back:false,bd:''});
+  save();m.remove();render()};
+ if(l){$('bk').onclick=()=>{l.back=!l.back;l.bd=l.back?today:'';save();m.remove();render()};
+  $('dl').onclick=()=>ask('Hapus data ini?',()=>{S.loans=S.loans.filter(x=>x.id!==l.id);save();m.remove();render()})}
+}
+const enc=p=>encodeURIComponent(p).replace(/'/g,'%27');
+function loansG(){
+ const L=S.loans,sm=a=>a.reduce((s,l)=>s+l.qty,0),g={};
+ L.forEach(l=>{(g[l.person]=g[l.person]||[]).push(l)});
+ const ps=Object.keys(g).filter(p=>(p+' '+g[p].map(l=>l.item).join(' ')).toLowerCase().includes(lsq.toLowerCase())).filter(p=>{const o=g[p].some(l=>!l.back);return lf==='all'||(lf==='out'&&o)||(lf==='back'&&!o)});
+ return `<header><span class="sp">Pinjam Barang</span></header>
+ <div class="sum"><div><small>Belum Kembali</small><p class="r">${sm(L.filter(l=>!l.back))}</p></div><div><small>Sudah Kembali</small><p class="g">${sm(L.filter(l=>l.back))}</p></div></div>
+ <div class="search"><input placeholder="Cari peminjam / barang" value="${esc(lsq)}" oninput="lsq=this.value;render();const i=document.querySelector('.search input');i.focus();i.setSelectionRange(lsq.length,lsq.length)"></div>
+ <div class="chips">${[['out','Belum Kembali'],['back','Sudah Kembali'],['all','Semua']].map(([k,l])=>`<button class="chip ${lf===k?'on':''}" onclick="lf='${k}';render()">${l}</button>`).join('')}</div>
+ ${ps.length?ps.map(p=>{const out=g[p].filter(l=>!l.back);return `<div class="row" onclick="lcur=decodeURIComponent('${enc(p)}');render()"><div class="av">${esc(p[0]||'?').toUpperCase()}</div><div class="nm">${esc(p)}<small style="display:block;color:var(--mut);font-size:13px">${g[p].length} jenis barang dipinjam</small></div><div class="am ${out.length?'r':'g'}">${out.length?out.length+' belum':'Semua'}<small>${out.length?'dikembalikan':'kembali'}</small></div></div>`}).join(''):'<div class="empty">Belum ada data pinjaman barang</div>'}
+ <button class="fab" onclick="loanSheet()">+ PINJAM BARANG</button>`}
+function loanDetail(){
+ const p=lcur,L=S.loans.filter(l=>l.person===p),out=L.filter(l=>!l.back);
+ if(!L.length){lcur=null;return tabbar()+loansG()}
+ const sorted=L.filter(l=>!l.back).concat(L.filter(l=>l.back));
+ return `<div class="dh"><button onclick="lcur=null;render()">←</button><span style="font-size:18px;font-weight:600">${esc(p)}</span></div>
+ <div class="big"><small>Belum dikembalikan</small><p class="${out.length?'r':'g'}">${out.length} jenis · ${out.reduce((s,l)=>s+l.qty,0)} pcs</p></div>
+ <div class="acts"><button style="background:var(--pri)" onclick="loanSheet(0,decodeURIComponent('${enc(p)}'))">+ Tambah Barang</button>${out.length?`<button style="background:var(--grn)" onclick="allBack()">Kembalikan Semua</button>`:''}</div>
+ ${sorted.map(l=>`<div class="tx"><div>${esc(l.item)} · ${l.qty} pcs<small>Dipinjam ${l.date}${l.back?' · kembali '+l.bd:''}</small></div><div style="display:flex;gap:8px;align-items:center">${l.back?'<b class="g">Kembali</b>':`<button class="chip on" style="background:var(--grn);padding:8px 12px" onclick="retLoan(${l.id})">Sudah dikembalikan</button>`}<button class="chip" style="padding:8px 12px" onclick="loanSheet(${l.id})">✎</button></div></div>`).join('')}`}
+function retLoan(id){const l=S.loans.find(x=>x.id===id);if(l){l.back=true;l.bd=today;save();render()}}
+function allBack(){ask('Tandai semua barang sudah dikembalikan?',()=>{S.loans.forEach(l=>{if(l.person===lcur&&!l.back){l.back=true;l.bd=today}});save();render()})}
+const alloc=a=>a.al.reduce((s,x)=>s+x.amt,0),rs=n=>(n<0?'-':'')+rp(n);
+function svList(){
+ const tot=S.sv.reduce((s,a)=>s+a.total,0),al=S.sv.reduce((s,a)=>s+alloc(a),0);
+ return `<header><span class="sp">Tabungan</span></header>
+ <div class="sum"><div><small>Total Tabungan</small><p class="g">${rp(tot)}</p></div><div><small>Sudah Dialokasikan</small><p>${rp(al)}</p></div></div>
+ ${S.sv.length?S.sv.map(a=>{const r=a.total-alloc(a);return `<div class="row" onclick="scur=${a.id};render()"><div class="av">🏦</div><div class="nm">${esc(a.name)}<small style="display:block;color:var(--mut);font-size:13px">${a.al.length} pemilik · sisa ${rs(r)}</small></div><div class="am g">${rp(a.total)}</div></div>`}).join(''):'<div class="empty">Belum ada tabungan</div>'}
+ <button class="fab" onclick="svSheet()">+ TABUNGAN</button>`}
+function svDetail(){
+ const a=S.sv.find(x=>x.id===scur);if(!a){scur=null;return tabbar()+svList()}
+ const r=a.total-alloc(a);
+ return `<div class="dh"><button onclick="scur=null;render()">←</button><span style="font-size:18px;font-weight:600">${esc(a.name)}</span></div>
+ <div class="big"><small>Total tabungan</small><p class="g">${rp(a.total)}</p><small>Dialokasikan ${rp(alloc(a))} · <b class="${r<0?'r':''}">Sisa ${rs(r)}</b></small></div>
+ <div class="acts"><button style="background:var(--pri)" onclick="alSheet(${a.id})">+ Tambah Pemilik</button><button style="background:var(--mut)" onclick="svSheet(${a.id})">Edit Tabungan</button></div>
+ ${a.al.map(x=>`<div class="tx" style="cursor:pointer" onclick="alSheet(${a.id},${x.id})"><div>${esc(x.who)}<small>${esc(x.note||'')}</small></div><b>${rp(x.amt)}</b></div>`).join('')||'<div class="empty">Belum ada pemilik dana</div>'}`}
+function svSheet(id){
+ const a=id?S.sv.find(x=>x.id===id):null;
+ const m=document.createElement('div');m.className='mask';
+ m.innerHTML=`<div class="sheet"><h3>${a?'Edit Tabungan':'Tambah Tabungan'}</h3><label>Nama (bank / tempat)</label><input id="sn" value="${a?esc(a.name):''}" placeholder="Contoh: Bank BCA"><label>Total (Rp)</label><input id="st" type="number" inputmode="numeric" value="${a?a.total:''}"><div style="display:flex;gap:8px"><button class="btn" style="background:var(--mut)" id="cx">Batal</button><button class="btn" style="background:var(--pri)" id="ok">Simpan</button></div>${a?'<button class="del" id="dl">Hapus tabungan</button>':''}</div>`;
+ document.body.appendChild(m);const $=k=>m.querySelector('#'+k);
+ $('cx').onclick=()=>m.remove();m.onclick=e=>{if(e.target===m)m.remove()};
+ $('ok').onclick=()=>{const name=$('sn').value.trim(),total=parseInt($('st').value)||0;if(!name||total<=0)return alert('Isi nama dan total');if(a){a.name=name;a.total=total}else S.sv.push({id:Date.now(),name,total,al:[]});save();m.remove();render()};
+ if(a)$('dl').onclick=()=>ask('Hapus tabungan ini?',()=>{S.sv=S.sv.filter(x=>x.id!==a.id);scur=null;save();m.remove();render()});
+}
+function alSheet(sid,aid){
+ const a=S.sv.find(x=>x.id===sid),x=aid?a.al.find(y=>y.id===aid):null;
+ const names=[...new Set(S.sv.flatMap(s=>s.al.map(y=>y.who)).concat(S.c.map(c=>c.name)))];
+ const m=document.createElement('div');m.className='mask';
+ m.innerHTML=`<div class="sheet"><h3>${x?'Edit Pemilik Dana':'Tambah Pemilik Dana'}</h3><label>Nama pemilik</label><input id="aw" list="pn2" value="${x?esc(x.who):''}"><datalist id="pn2">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist><label>Jumlah (Rp)</label><input id="aa" type="number" inputmode="numeric" value="${x?x.amt:''}"><label>Catatan</label><input id="an" value="${x?esc(x.note||''):''}" placeholder="Opsional"><div style="display:flex;gap:8px"><button class="btn" style="background:var(--mut)" id="cx">Batal</button><button class="btn" style="background:var(--pri)" id="ok">Simpan</button></div>${x?'<button class="del" id="dl">Hapus</button>':''}</div>`;
+ document.body.appendChild(m);const $=k=>m.querySelector('#'+k);
+ $('cx').onclick=()=>m.remove();m.onclick=e=>{if(e.target===m)m.remove()};
+ $('ok').onclick=()=>{const who=$('aw').value.trim(),amt=parseInt($('aa').value)||0,note=$('an').value.trim();if(!who||amt<=0)return alert('Isi nama dan jumlah');if(x)Object.assign(x,{who,amt,note});else a.al.push({id:Date.now(),who,amt,note});save();m.remove();render()};
+ if(x)$('dl').onclick=()=>ask('Hapus data ini?',()=>{a.al=a.al.filter(y=>y.id!==x.id);save();m.remove();render()});
+}
+const lastD=c=>c.tx.reduce((m,x)=>x.d>m?x.d:m,'');
+function sortC(a){return a.slice().sort((x,y)=>so==='big'?bal(y)-bal(x):so==='az'?x.name.localeCompare(y.name):(lastD(y).localeCompare(lastD(x))||y.id-x.id))}
+async function dl(name,data){try{const d=await claude.use('downloads');if(d){await d.save({filename:name,data});return}}catch(e){if(e&&e.code==='declined')return}alert('Unduh tidak tersedia di sini. Pakai Salin data.')}
+const getPin=()=>{try{return localStorage.getItem('cu-pin')||''}catch(e){return ''}};
+const hp=s=>{let h=5381;for(const ch of s+'cu')h=((h*33)^ch.charCodeAt(0))>>>0;return String(h)};
+function lock(){if(!getPin()||document.getElementById('lk'))return;const m=document.createElement('div');m.id='lk';m.className='mask';m.style.cssText='z-index:99;background:var(--bg);align-items:center';m.innerHTML='<div class="sheet" style="max-width:320px;border-radius:16px;text-align:center"><h3>🔒 Masukkan PIN</h3><input id="pi" type="password" inputmode="numeric" style="text-align:center;font-size:22px"><button class="btn" style="background:var(--pri)" id="go">Buka</button></div>';document.body.appendChild(m);const go=()=>{if(hp(m.querySelector('#pi').value)===getPin())m.remove();else{alert('PIN salah');m.querySelector('#pi').value=''}};m.querySelector('#go').onclick=go;m.querySelector('#pi').onkeydown=e=>{if(e.key==='Enter')go()}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')lock()});
+function pinSheet(){
+ const m=document.createElement('div');m.className='mask';const on=!!getPin();
+ m.innerHTML=`<div class="sheet"><h3>PIN Aplikasi</h3><label>${on?'PIN baru (4–6 angka)':'Buat PIN (4–6 angka)'}</label><input id="np" type="password" inputmode="numeric" maxlength="6"><div style="display:flex;gap:8px"><button class="btn" style="background:var(--mut)" id="cx">Batal</button><button class="btn" style="background:var(--pri)" id="ok">Simpan</button></div>${on?'<button class="del" id="off">Matikan PIN</button>':''}<small style="color:var(--mut)">PIN ini hanya kunci layar sederhana di perangkat ini, bukan enkripsi.</small></div>`;
+ document.body.appendChild(m);const $=k=>m.querySelector('#'+k);
+ $('cx').onclick=()=>m.remove();m.onclick=e=>{if(e.target===m)m.remove()};
+ $('ok').onclick=()=>{const v=$('np').value.trim();if(!/^\d{4,6}$/.test(v))return alert('PIN harus 4–6 angka');try{localStorage.setItem('cu-pin',hp(v))}catch(e){return alert('Gagal menyimpan PIN')}m.remove();render()};
+ if(on)$('off').onclick=()=>{try{localStorage.removeItem('cu-pin')}catch(e){}m.remove();render()};
+}
+function backupSheet(){
+ const m=document.createElement('div');m.className='mask';
+ m.innerHTML=`<div class="sheet" style="max-height:90vh;overflow:auto"><h3>Backup & Pulihkan</h3><button class="btn" style="background:var(--pri)" id="sv">Simpan backup ke file</button><button class="btn" style="background:var(--grn)" id="cp">Salin data backup</button><label>Pulihkan: pilih file backup atau tempel datanya</label><input type="file" id="fl" accept=".json,application/json"><textarea id="tx" rows="3" placeholder="Tempel data backup di sini" style="width:100%;padding:10px;border:1px solid var(--ln);border-radius:10px;background:var(--card);color:var(--tx);font:inherit"></textarea><button class="btn" style="background:var(--red)" id="rs">Pulihkan (menimpa data sekarang)</button><button class="btn" style="background:var(--mut)" id="cx">Tutup</button></div>`;
+ document.body.appendChild(m);const $=k=>m.querySelector('#'+k);
+ $('cx').onclick=()=>m.remove();m.onclick=e=>{if(e.target===m)m.remove()};
+ $('sv').onclick=()=>dl('backup-catatan-utang-'+today+'.json',JSON.stringify(S));
+ $('cp').onclick=()=>{const t=JSON.stringify(S);navigator.clipboard.writeText(t).then(()=>alert('Data tersalin'),()=>{$('tx').value=t;$('tx').select();alert('Salin teks di kotak')})};
+ $('fl').onchange=e=>{const f=e.target.files[0];if(f)f.text().then(t=>{$('tx').value=t})};
+ $('rs').onclick=()=>{let o;try{o=JSON.parse($('tx').value)}catch(e){return alert('Data tidak valid')}if(!o||!Array.isArray(o.c))return alert('Data tidak valid');ask('Data sekarang akan ditimpa. Lanjut?',()=>{S=o;S.loans=S.loans||[];S.sv=S.sv||[];save();m.remove();render()})};
+}
+function exportCsv(){const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';const rows=[['Tanggal','Pelanggan','Jenis','Jumlah','Catatan']];S.c.forEach(c=>c.tx.forEach(x=>rows.push([x.d,c.name,x.t==='u'?'Utang':'Pembayaran',x.a,x.n||''])));dl('transaksi-utang-'+today+'.csv','\uFEFF'+rows.map(r=>r.map(q).join(',')).join('\n'))}
+function more(){
+ if(mv==='report')return report();
+ return tabbar()+`<header><span class="sp">Lainnya</span></header>
+ <div class="row" onclick="mv='report';render()"><div class="av">📊</div><div class="nm">Laporan</div>›</div>
+ <div class="row" onclick="backupSheet()"><div class="av">💾</div><div class="nm">Backup & Pulihkan</div>›</div>
+ <div class="row" onclick="pinSheet()"><div class="av">🔒</div><div class="nm">PIN Aplikasi<small style="display:block;color:var(--mut);font-size:13px">${getPin()?'Aktif':'Tidak aktif'}</small></div>›</div>
+ <div class="row" onclick="window.cloud&&cloud.out()"><div class="av">☁</div><div class="nm">Keluar akun<small style="display:block;color:var(--mut);font-size:13px">${window.cloud?(cloud.email()||''):'Mode lokal'}</small></div>›</div>`}
+function report(){
+ const bs=S.c.map(c=>({n:c.name,b:bal(c)})),up=bs.filter(x=>x.b>0).sort((a,b)=>b.b-a.b),tot=up.reduce((s,x)=>s+x.b,0),us=-bs.filter(x=>x.b<0).reduce((s,x)=>s+x.b,0);
+ const mo={};S.c.forEach(c=>c.tx.forEach(x=>{const k=x.d.slice(0,7);mo[k]=mo[k]||{u:0,b:0};mo[k][x.t]+=x.a}));
+ const ks=Object.keys(mo).sort().reverse().slice(0,6),mx=Math.max(1,...ks.flatMap(k=>[mo[k].u,mo[k].b]));
+ const bar=(v,c)=>`<div style="height:8px;border-radius:4px;background:${c};width:${Math.max(2,v/mx*100)}%"></div>`;
+ const MN=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+ return `<div class="dh"><button onclick="mv='menu';render()">←</button><span style="font-size:18px;font-weight:600">Laporan</span></div>
+ <div class="sum"><div><small>Utang Pelanggan</small><p class="r">${rp(tot)}</p></div><div><small>Utang Saya</small><p class="g">${rp(us)}</p></div></div>
+ <div class="big" style="text-align:left"><b>Utang terbesar</b>${up.length?up.slice(0,5).map(x=>`<div style="margin-top:10px"><div style="display:flex;justify-content:space-between"><span>${esc(x.n)}</span><b class="r">${rp(x.b)}</b></div><div style="height:8px;border-radius:4px;background:var(--red);width:${Math.max(2,x.b/up[0].b*100)}%"></div><small style="color:var(--mut)">${Math.round(x.b/tot*100)}% dari total</small></div>`).join(''):'<p style="font-size:14px;color:var(--mut);font-weight:400">Tidak ada utang</p>'}</div>
+ <div class="big" style="text-align:left"><b>Per bulan</b>${ks.length?ks.map(k=>`<div style="margin-top:10px"><div style="display:flex;justify-content:space-between"><span>${MN[+k.slice(5)-1]} ${k.slice(0,4)}</span><small style="color:var(--mut)">diberi ${rp(mo[k].u)} · dibayar ${rp(mo[k].b)}</small></div>${bar(mo[k].u,'var(--red)')}<div style="height:4px"></div>${bar(mo[k].b,'var(--grn)')}</div>`).join(''):'<p style="font-size:14px;color:var(--mut);font-weight:400">Belum ada transaksi</p>'}</div>
+ <div class="acts"><button style="background:var(--pri)" onclick="exportCsv()">Ekspor CSV (Excel)</button></div>`}
+function ask(msg,fn){const m=document.createElement('div');m.className='mask';m.style.zIndex=20;m.style.alignItems='center';m.innerHTML=`<div class="sheet" style="border-radius:16px;max-width:340px;margin:16px"><div>${msg}</div><div style="display:flex;gap:8px"><button class="btn" style="background:var(--mut)" id="n">Batal</button><button class="btn" style="background:var(--red)" id="y">Ya</button></div></div>`;document.body.appendChild(m);m.querySelector('#n').onclick=()=>m.remove();m.querySelector('#y').onclick=()=>{m.remove();fn()}}
+window.alert=msg=>{const t=document.createElement('div');t.textContent=msg;t.style.cssText='position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:20px;z-index:30;font-size:14px';document.body.appendChild(t);setTimeout(()=>t.remove(),2200)};
+function editTx(id,i){
+ const c=S.c.find(x=>x.id===id),x=c.tx[i];
+ const m=document.createElement('div');m.className='mask';
+ m.innerHTML=`<div class="sheet"><h3>Edit Transaksi</h3>
+ <div class="seg"><button id="bu">Utang</button><button id="bb">Pembayaran</button></div>
+ <label>Jumlah (Rp)</label><input id="am" type="number" inputmode="numeric" value="${x.a}">
+ <label>Catatan</label><input id="no" value="${esc(x.n||'')}">
+ <label>Tanggal</label><input id="dt" type="date" value="${x.d}">
+ <div style="display:flex;gap:8px"><button class="btn" style="background:var(--mut)" id="cx">Batal</button><button class="btn" style="background:var(--pri)" id="ok">Simpan</button></div>
+ <button class="del" id="dl">Hapus transaksi</button></div>`;
+ document.body.appendChild(m);const $=k=>m.querySelector('#'+k);let ty=x.t;
+ const sync=()=>{$('bu').className=ty==='u'?'on':'';$('bb').className=ty==='b'?'on':''};sync();
+ $('bu').onclick=()=>{ty='u';sync()};$('bb').onclick=()=>{ty='b';sync()};
+ $('cx').onclick=()=>m.remove();m.onclick=e=>{if(e.target===m)m.remove()};
+ $('dl').onclick=()=>ask('Hapus transaksi ini?',()=>{c.tx.splice(i,1);save();m.remove();render()});
+ $('ok').onclick=()=>{const a=parseInt($('am').value);if(a<0||(!a&&!$('no').value.trim()))return alert('Isi jumlah atau catatan');x.a=a||0;x.t=ty;x.n=$('no').value.trim();x.d=$('dt').value||x.d;save();m.remove();render()}
+}
+window.getS=()=>S;window.setS=o=>{S=o;S.loans=S.loans||[];S.sv=S.sv||[];try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}render()};
+lock();render();
+</script>
+<script type="module">
+// ====== ISI DENGAN KONFIGURASI FIREBASE ANDA (Project settings > Your apps > Web app) ======
+const firebaseConfig={apiKey:"AIzaSyDLXRzNiUZmi-7fr3MusUFgilecSW5otQY",authDomain:"keuangan-b680f.firebaseapp.com",projectId:"keuangan-b680f"};
+// ===========================================================================================
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {getAuth,GoogleAuthProvider,signInWithPopup,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {getFirestore,doc,onSnapshot,setDoc} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+const st=document.createElement('div');st.style.cssText='position:fixed;bottom:4px;left:8px;font-size:11px;color:var(--mut);z-index:5';document.body.appendChild(st);
+const say=t=>{st.textContent=t};
+function overlay(html){let m=document.getElementById('lg');if(!m){m=document.createElement('div');m.id='lg';m.className='mask';m.style.cssText='z-index:98;background:var(--bg);align-items:center';document.body.appendChild(m)}m.innerHTML='<div class="sheet" style="max-width:340px;border-radius:16px;text-align:center">'+html+'</div>';return m}
+const close=()=>{const m=document.getElementById('lg');if(m)m.remove()};
+if(!firebaseConfig.apiKey||firebaseConfig.apiKey==="ISI"){
+  const m=overlay('<h3>Firebase belum diisi</h3><div>Isi <b>firebaseConfig</b> di index.html, atau lanjut dulu tanpa cloud (data hanya di perangkat ini).</div><button class="btn" style="background:var(--pri)" id="go">Lanjut tanpa cloud</button>');
+  m.querySelector('#go').onclick=()=>{close();say('Mode lokal')};
+}else{
+  const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),ref=doc(db,"ledgers","main");
+  let unsub=null,timer=null,on=false;
+  window.cloudSave=()=>{if(!on)return;say('\u2601 Menyimpan\u2026');clearTimeout(timer);timer=setTimeout(()=>{setDoc(ref,{json:JSON.stringify(getS()),t:Date.now()}).then(()=>say('\u2601 Tersinkron')).catch(e=>say('\u26a0 Gagal sync: '+e.code))},400)};
+  window.cloud={out:()=>signOut(auth),email:()=>auth.currentUser&&auth.currentUser.email};
+  onAuthStateChanged(auth,u=>{
+    if(unsub){unsub();unsub=null}on=false;
+    if(!u){say('Belum masuk');const m=overlay('<h3>Catatan Utang</h3><div>Masuk untuk menyinkronkan data.</div><button class="btn" style="background:var(--pri)" id="go">Masuk dengan Google</button>');m.querySelector('#go').onclick=()=>signInWithPopup(auth,new GoogleAuthProvider()).catch(e=>alert('Gagal masuk: '+e.code));return}
+    close();on=true;say('\u2601 Menghubungkan\u2026');
+    unsub=onSnapshot(ref,snap=>{
+      if(snap.metadata.hasPendingWrites)return;
+      if(snap.exists()){try{setS(JSON.parse(snap.data().json));say('\u2601 Tersinkron')}catch(e){say('\u26a0 Data rusak')}}
+      else{setDoc(ref,{json:JSON.stringify(getS()),t:Date.now()}).then(()=>say('\u2601 Tersinkron'))}
+    },err=>{say('\u26a0 '+err.code);if(err.code==='permission-denied')alert('Akun ini tidak punya izin. Cek daftar email di firestore.rules')});
+  });
+}
+</script>
+</body></html>
