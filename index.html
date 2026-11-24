@@ -54,6 +54,7 @@ try{const r=localStorage.getItem(KEY);if(r)S=JSON.parse(r);else throw 0}catch(e)
 S.c=[]}
 S.loans=S.loans||[];S.sv=S.sv||[];
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}if(window.cloudSave)cloudSave()};
+const ini=n=>{n=String(n||'').trim();if(!n)return '?';try{if(window.Intl&&Intl.Segmenter){for(const g of new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(n))return g.segment.toUpperCase()}}catch(e){}return (Array.from(n)[0]||'?').toUpperCase()};
 const itm=c=>0;
 const rp=n=>'Rp'+Math.abs(n).toLocaleString('id-ID');
 const bal=c=>c.tx.reduce((s,x)=>s+(x.t==='u'?x.a:-x.a),0);
@@ -72,7 +73,7 @@ function list(){
  <div class="search"><input placeholder="Cari ${S.c.length} pelanggan" value="${esc(q)}" oninput="q=this.value;render();const i=document.querySelector('.search input');i.focus();i.setSelectionRange(q.length,q.length)"></div>
  <div class="chips">${chips.map(([k,l])=>`<button class="chip ${filter===k?'on':''}" onclick="filter='${k}';render()">${l}</button>`).join('')}</div>
  <div class="search" style="padding-top:0"><select onchange="so=this.value;render()"><option value="new" ${so==='new'?'selected':''}>Urutkan: Terbaru</option><option value="big" ${so==='big'?'selected':''}>Urutkan: Utang terbesar</option><option value="az" ${so==='az'?'selected':''}>Urutkan: Nama A–Z</option></select></div>
- ${cs.length?cs.map(c=>{const b=bal(c);return `<div class="row" onclick="cur=${c.id};view='detail';render()"><div class="av">${esc(c.name[0]||'?').toUpperCase()}</div><div class="nm">${esc(c.name)}</div><div class="am ${b>0?'r':'g'}">${b>0?rp(b):b<0?rp(b):'Rp 0'}<small>${b>0?'Utang Pelanggan':b<0?'Utang Saya':'Lunas'}</small>${itm(c)>0?`<small style="color:var(--pri)">Pinjam ${itm(c)} barang</small>`:''}</div></div>`}).join(''):'<div class="empty">Belum ada data</div>'}
+ ${cs.length?cs.map(c=>{const b=bal(c);return `<div class="row" onclick="cur=${c.id};view='detail';render()"><div class="av">${esc(ini(c.name))}</div><div class="nm">${esc(c.name)}</div><div class="am ${b>0?'r':'g'}">${b>0?rp(b):b<0?rp(b):'Rp 0'}<small>${b>0?'Utang Pelanggan':b<0?'Utang Saya':'Lunas'}</small>${itm(c)>0?`<small style="color:var(--pri)">Pinjam ${itm(c)} barang</small>`:''}</div></div>`}).join(''):'<div class="empty">Belum ada data</div>'}
  <button class="fab" onclick="sheet()">+ CATAT UTANG</button>`}
 function detail(){const c=S.c.find(x=>x.id===cur);if(!c){view='list';return list()}const b=bal(c);
  return `<div class="dh"><button onclick="view='list';render()">←</button><span style="font-size:18px;font-weight:600;flex:1">${esc(c.name)}</span><button onclick="nameSheet(${c.id})" aria-label="Edit nama" style="font-size:20px">✎</button></div>
@@ -113,7 +114,7 @@ function loans(){
  <div class="sum"><div><small>Belum Kembali</small><p class="r">${sm(out)}</p></div><div><small>Sudah Kembali</small><p class="g">${sm(L.filter(l=>l.back))}</p></div></div>
  <div class="search"><input placeholder="Cari peminjam / barang" value="${esc(lsq)}" oninput="lsq=this.value;render();const i=document.querySelector('.search input');i.focus();i.setSelectionRange(lsq.length,lsq.length)"></div>
  <div class="chips">${[['out','Belum Kembali'],['back','Sudah Kembali'],['all','Semua']].map(([k,l])=>`<button class="chip ${lf===k?'on':''}" onclick="lf='${k}';render()">${l}</button>`).join('')}</div>
- ${ls.length?ls.slice().reverse().map(l=>`<div class="row" onclick="loanSheet(${l.id})"><div class="av">${esc(l.person[0]||'?').toUpperCase()}</div><div class="nm">${esc(l.person)}<small style="display:block;color:var(--mut);font-size:13px">${esc(l.item)} · ${l.qty} pcs · ${l.date}</small></div><div class="am ${l.back?'g':'r'}">${l.back?'Kembali':'Belum'}<small>${l.back?l.bd:'kembali'}</small></div></div>`).join(''):'<div class="empty">Belum ada data pinjaman barang</div>'}
+ ${ls.length?ls.slice().reverse().map(l=>`<div class="row" onclick="loanSheet(${l.id})"><div class="av">${esc(ini(l.person))}</div><div class="nm">${esc(l.person)}<small style="display:block;color:var(--mut);font-size:13px">${esc(l.item)} · ${l.qty} pcs · ${l.date}</small></div><div class="am ${l.back?'g':'r'}">${l.back?'Kembali':'Belum'}<small>${l.back?l.bd:'kembali'}</small></div></div>`).join(''):'<div class="empty">Belum ada data pinjaman barang</div>'}
  <button class="fab" onclick="loanSheet()">+ PINJAM BARANG</button>`}
 function loanSheet(id,pp){
  const l=id?S.loans.find(x=>x.id===id):null;
@@ -144,7 +145,7 @@ function loansG(){
  <div class="sum"><div><small>Belum Kembali</small><p class="r">${sm(L.filter(l=>!l.back))}</p></div><div><small>Sudah Kembali</small><p class="g">${sm(L.filter(l=>l.back))}</p></div></div>
  <div class="search"><input placeholder="Cari peminjam / barang" value="${esc(lsq)}" oninput="lsq=this.value;render();const i=document.querySelector('.search input');i.focus();i.setSelectionRange(lsq.length,lsq.length)"></div>
  <div class="chips">${[['out','Belum Kembali'],['back','Sudah Kembali'],['all','Semua']].map(([k,l])=>`<button class="chip ${lf===k?'on':''}" onclick="lf='${k}';render()">${l}</button>`).join('')}</div>
- ${ps.length?ps.map(p=>{const out=g[p].filter(l=>!l.back);return `<div class="row" onclick="lcur=decodeURIComponent('${enc(p)}');render()"><div class="av">${esc(p[0]||'?').toUpperCase()}</div><div class="nm">${esc(p)}<small style="display:block;color:var(--mut);font-size:13px">${g[p].length} jenis barang dipinjam</small></div><div class="am ${out.length?'r':'g'}">${out.length?out.length+' belum':'Semua'}<small>${out.length?'dikembalikan':'kembali'}</small></div></div>`}).join(''):'<div class="empty">Belum ada data pinjaman barang</div>'}
+ ${ps.length?ps.map(p=>{const out=g[p].filter(l=>!l.back);return `<div class="row" onclick="lcur=decodeURIComponent('${enc(p)}');render()"><div class="av">${esc(ini(p))}</div><div class="nm">${esc(p)}<small style="display:block;color:var(--mut);font-size:13px">${g[p].length} jenis barang dipinjam</small></div><div class="am ${out.length?'r':'g'}">${out.length?out.length+' belum':'Semua'}<small>${out.length?'dikembalikan':'kembali'}</small></div></div>`}).join(''):'<div class="empty">Belum ada data pinjaman barang</div>'}
  <button class="fab" onclick="loanSheet()">+ PINJAM BARANG</button>`}
 function loanDetail(){
  const p=lcur,L=S.loans.filter(l=>l.person===p),out=L.filter(l=>!l.back);
