@@ -66,10 +66,10 @@ const rp=n=>'Rp'+Math.abs(n).toLocaleString('id-ID');
 const bal=c=>c.tx.reduce((s,x)=>s+(x.t==='u'?x.a:-x.a),0);
 const dueState=c=>{if(bal(c)<=0)return '';const ds=c.tx.filter(x=>x.t==='u'&&x.due).map(x=>x.due).sort();if(!ds.length)return '';return ds[0]<today?'late':ds[0]===today?'today':''};
 const esc=s=>String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
-let view='list',filter='all',q='',cur=null,tab='debt',lsq='',lf='out',lcur=null,scur=null,so='new',mv='menu';
-const tabbar=()=>`<div class="tabs"><button class="${tab==='debt'?'on':''}" onclick="tab='debt';view='list';render()">Utang</button><button class="${tab==='loan'?'on':''}" onclick="tab='loan';lcur=null;render()">Pinjam Barang</button><button class="${tab==='sv'?'on':''}" onclick="tab='sv';scur=null;render()">Tabungan</button><button class="${tab==='more'?'on':''}" onclick="tab='more';mv='menu';render()">Lainnya</button></div>`;
+let view='list',filter='all',q='',cur=null,tab='debt',lsq='',lf='out',lcur=null,scur=null,ocur=null,so='new',mv='menu';
+const tabbar=()=>`<div class="tabs"><button class="${tab==='debt'?'on':''}" onclick="tab='debt';view='list';render()">Utang</button><button class="${tab==='loan'?'on':''}" onclick="tab='loan';lcur=null;render()">Pinjam Barang</button><button class="${tab==='sv'?'on':''}" onclick="tab='sv';scur=null;ocur=null;render()">Tabungan</button><button class="${tab==='more'?'on':''}" onclick="tab='more';mv='menu';render()">Lainnya</button></div>`;
 const chips=[['all','Semua'],['owe','Utang Pelanggan'],['paid','Lunas']];
-function render(){const el=document.getElementById('app');el.innerHTML=tab==='more'?more():tab==='sv'?(scur?svDetail():tabbar()+svList()):tab==='loan'?(lcur?loanDetail():tabbar()+loansG()):view==='list'?tabbar()+list():detail()}
+function render(){const el=document.getElementById('app');el.innerHTML=tab==='more'?more():tab==='sv'?(scur?(ocur?ownDetail():svDetail()):tabbar()+svList()):tab==='loan'?(lcur?loanDetail():tabbar()+loansG()):view==='list'?tabbar()+list():detail()}
 function list(){
  const bs=S.c.map(bal);const up=bs.filter(b=>b>0).reduce((a,b)=>a+b,0),us=-bs.filter(b=>b<0).reduce((a,b)=>a+b,0);
  
@@ -172,12 +172,12 @@ function svList(){
  <button class="fab" onclick="svSheet()">+ TABUNGAN</button>`}
 function svDetail(){
  const a=S.sv.find(x=>x.id===scur);if(!a){scur=null;return tabbar()+svList()}
- const r=a.total-alloc(a);
- return `<div class="dh"><button onclick="scur=null;render()">←</button><span style="font-size:18px;font-weight:600">${esc(a.name)}</span></div>
+ mig(a);const r=a.total-alloc(a);
+ return `<div class="dh"><button onclick="scur=null;ocur=null;render()">←</button><span style="font-size:18px;font-weight:600">${esc(a.name)}</span></div>
  <div class="big"><small>Total tabungan</small><p class="g">${rp(a.total)}</p><small>Dialokasikan ${rp(alloc(a))} · <b class="${r<0?'r':''}">Sisa ${rs(r)}</b></small></div>
  <div class="acts"><button style="background:var(--pri)" onclick="alSheet(${a.id})">+ Tambah Pemilik</button><button style="background:var(--mut)" onclick="svSheet(${a.id})">Edit Tabungan</button></div>
- ${a.al.map(x=>`<div class="tx" style="cursor:pointer" onclick="alSheet(${a.id},${x.id})"><div>${esc(x.who)}<small>${esc(x.note||'')}</small></div><b>${rp(x.amt)}</b></div>`).join('')||'<div class="empty">Belum ada pemilik dana</div>'}
- ${(a.h&&a.h.length)?'<div style="padding:14px 16px 6px;font-weight:600;color:var(--mut)">Riwayat Penarikan</div>'+a.h.map(h=>`<div class="tx"><div>${esc(h.who)}<small>${esc(h.d)}${h.note?' · '+esc(h.note):''}</small></div><b class="r">-${rp(h.amt)}</b></div>`).join(''):''}`}
+ ${a.al.map(x=>`<div class="tx" style="cursor:pointer" onclick="ocur=${x.id};render()"><div>${esc(x.who)}<small>${(x.log&&x.log.length)?x.log.length+' riwayat':esc(x.note||'')}</small></div><b>${rp(x.amt)}</b></div>`).join('')||'<div class="empty">Belum ada pemilik dana</div>'}
+ ${(a.h&&a.h.length)?'<div style="padding:14px 16px 6px;font-weight:600;color:var(--mut)">Riwayat lain</div>'+a.h.map(h=>`<div class="tx"><div>${esc(h.who)}<small>${esc(h.d)}${h.note?' · '+esc(h.note):''}</small></div><b class="r">-${rp(h.amt)}</b></div>`).join(''):''}`}
 function svSheet(id){
  const a=id?S.sv.find(x=>x.id===id):null;
  const m=document.createElement('div');m.className='mask';
@@ -187,29 +187,42 @@ function svSheet(id){
  $('ok').onclick=()=>{const name=$('sn').value.trim(),total=num($('st').value)||0;if(!name||total<=0)return alert('Isi nama dan total');if(a){a.name=name;a.total=total}else S.sv.push({id:Date.now(),name,total,al:[]});save();m.remove();render()};
  if(a)$('dl').onclick=()=>ask('Hapus tabungan ini?',()=>{S.sv=S.sv.filter(x=>x.id!==a.id);scur=null;save();m.remove();render()});
 }
-function useSheet(sid,aid){
- const a=S.sv.find(x=>x.id===sid),x=a.al.find(y=>y.id===aid);if(!x)return;
+function mig(a){if(!a.h||!a.h.length)return;a.h=a.h.filter(h=>{const o=a.al.find(y=>y.who===h.who);if(!o)return true;(o.log=o.log||[]).push({id:h.id,d:h.d,t:'out',amt:h.amt,note:h.note||''});return false});if(!a.h.length)delete a.h}
+function ownDetail(){
+ const a=S.sv.find(x=>x.id===scur);if(!a){scur=null;ocur=null;return tabbar()+svList()}
+ mig(a);const x=a.al.find(y=>y.id===ocur);if(!x){ocur=null;return svDetail()}
+ const L=(x.log||[]).slice().sort((p,q)=>q.d.localeCompare(p.d)||q.id-p.id);
+ return `<div class="dh"><button onclick="ocur=null;render()">←</button><span style="font-size:18px;font-weight:600">${esc(x.who)}</span></div>
+ <div class="big"><small>Saldo ${esc(x.who)}</small><p class="g">${rp(x.amt)}</p><small>${esc(a.name)}${x.note?' · '+esc(x.note):''}</small></div>
+ <div class="acts"><button style="background:var(--pri)" onclick="logSheet(${a.id},${x.id},'in')">+ Pemasukan</button><button style="background:#c62d36" onclick="logSheet(${a.id},${x.id},'out')">− Penarikan</button></div>
+ <div class="acts"><button style="background:var(--mut)" onclick="alSheet(${a.id},${x.id})">Edit Pemilik</button></div>
+ ${L.map(h=>`<div class="tx" style="cursor:pointer" onclick="logSheet(${a.id},${x.id},'${h.t}',${h.id})"><div>${h.t==='in'?'Pemasukan':'Penarikan'}<small>${esc(h.d)}${h.note?' · '+esc(h.note):''}</small></div><b class="${h.t==='in'?'g':'r'}">${h.t==='in'?'+':'-'}${rp(h.amt)}</b></div>`).join('')||'<div class="empty">Belum ada riwayat</div>'}`}
+function logSheet(sid,oid,t,eid){
+ const a=S.sv.find(z=>z.id===sid),x=a.al.find(z=>z.id===oid),e=eid?(x.log||[]).find(z=>z.id===eid):null;
+ if(e)t=e.t;const sg=t==='in'?1:-1,nm=t==='in'?'Pemasukan':'Penarikan';
  const m=document.createElement('div');m.className='mask';
- m.innerHTML=`<div class="sheet"><h3>Pakai / Tarik Dana</h3><small style="color:var(--mut)">${esc(x.who)} · saldo ${rp(x.amt)}</small><label>Jumlah dipakai (Rp)</label><input id="ua" class="money" type="text" inputmode="numeric" autocomplete="off" placeholder="0"><label>Catatan</label><input id="un" placeholder="Opsional"><div style="display:flex;gap:8px"><button class="btn" style="background:var(--mut)" id="cx">Batal</button><button class="btn" style="background:#c62d36" id="ok">Kurangi</button></div></div>`;
+ m.innerHTML=`<div class="sheet"><h3>${e?'Edit '+nm:(t==='in'?'Tambah Pemasukan':'Pakai / Tarik Dana')}</h3><small style="color:var(--mut)">${esc(x.who)} · saldo ${rp(x.amt)}</small><label>Jumlah (Rp)</label><input id="la" class="money" type="text" inputmode="numeric" autocomplete="off" placeholder="0" value="${e?e.amt.toLocaleString('id-ID'):''}"><label>Catatan</label><input id="ln" placeholder="Opsional" value="${e?esc(e.note||''):''}"><label>Tanggal</label><input id="ld" type="date" value="${e?e.d:today}"><div style="display:flex;gap:8px"><button class="btn" style="background:var(--mut)" id="cx">Batal</button><button class="btn" style="background:${t==='in'?'var(--pri)':'#c62d36'}" id="ok">Simpan</button></div>${e?'<button class="del" id="dl">Hapus</button>':''}</div>`;
  document.body.appendChild(m);const $=k=>m.querySelector('#'+k);
- $('cx').onclick=()=>m.remove();m.onclick=e=>{if(e.target===m)m.remove()};
- $('ok').onclick=()=>{const v=num($('ua').value)||0,note=$('un').value.trim();
+ $('cx').onclick=()=>m.remove();m.onclick=ev=>{if(ev.target===m)m.remove()};
+ $('ok').onclick=()=>{const v=num($('la').value)||0,note=$('ln').value.trim(),d=$('ld').value||today;
   if(v<=0)return alert('Isi jumlah');
-  if(v>x.amt)return alert('Melebihi saldo '+x.who+' ('+rp(x.amt)+')');
-  x.amt-=v;a.total-=v;(a.h=a.h||[]).unshift({id:Date.now(),d:today,who:x.who,amt:v,note});
+  const old=e?sg*e.amt:0,na=x.amt-old+sg*v;
+  if(na<0)return alert('Melebihi saldo '+x.who);
+  x.amt=na;a.total=a.total-old+sg*v;
+  if(e)Object.assign(e,{d,amt:v,note});else(x.log=x.log||[]).push({id:Date.now(),d,t,amt:v,note});
   save();m.remove();render()};
- setTimeout(()=>$('ua').focus(),50)
+ if(e)$('dl').onclick=()=>{const na=x.amt-sg*e.amt;if(na<0)return alert('Tidak bisa dihapus: saldo jadi minus');ask('Hapus catatan ini? Saldo ikut dikembalikan.',()=>{x.amt=na;a.total-=sg*e.amt;x.log=x.log.filter(z=>z.id!==e.id);save();m.remove();render()})};
+ else setTimeout(()=>$('la').focus(),50)
 }
 function alSheet(sid,aid){
  const a=S.sv.find(x=>x.id===sid),x=aid?a.al.find(y=>y.id===aid):null;
  const names=[...new Set(S.sv.flatMap(s=>s.al.map(y=>y.who)).concat(S.c.map(c=>c.name)))];
  const m=document.createElement('div');m.className='mask';
- m.innerHTML=`<div class="sheet"><h3>${x?'Edit Pemilik Dana':'Tambah Pemilik Dana'}</h3><label>Nama pemilik</label><input id="aw" list="pn2" value="${x?esc(x.who):''}"><datalist id="pn2">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist><label>Jumlah (Rp)</label><input id="aa" class="money" type="text" inputmode="numeric" autocomplete="off" value="${x?x.amt.toLocaleString('id-ID'):''}"><label>Catatan</label><input id="an" value="${x?esc(x.note||''):''}" placeholder="Opsional"><div style="display:flex;gap:8px"><button class="btn" style="background:var(--mut)" id="cx">Batal</button><button class="btn" style="background:var(--pri)" id="ok">Simpan</button></div>${x?'<button class="btn" style="background:#c62d36;margin-top:10px;width:100%" id="us">Pakai / Tarik Dana</button><button class="del" id="dl">Hapus</button>':''}</div>`;
+ m.innerHTML=`<div class="sheet"><h3>${x?'Edit Pemilik Dana':'Tambah Pemilik Dana'}</h3><label>Nama pemilik</label><input id="aw" list="pn2" value="${x?esc(x.who):''}"><datalist id="pn2">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist><label>Jumlah (Rp)</label><input id="aa" class="money" type="text" inputmode="numeric" autocomplete="off" value="${x?x.amt.toLocaleString('id-ID'):''}"><label>Catatan</label><input id="an" value="${x?esc(x.note||''):''}" placeholder="Opsional"><div style="display:flex;gap:8px"><button class="btn" style="background:var(--mut)" id="cx">Batal</button><button class="btn" style="background:var(--pri)" id="ok">Simpan</button></div>${x?'<button class="del" id="dl">Hapus</button>':''}</div>`;
  document.body.appendChild(m);const $=k=>m.querySelector('#'+k);
  $('cx').onclick=()=>m.remove();m.onclick=e=>{if(e.target===m)m.remove()};
- if(x)$('us').onclick=()=>{m.remove();useSheet(sid,aid)};
  $('ok').onclick=()=>{const who=$('aw').value.trim(),amt=num($('aa').value)||0,note=$('an').value.trim();if(!who||amt<=0)return alert('Isi nama dan jumlah');if(x)Object.assign(x,{who,amt,note});else a.al.push({id:Date.now(),who,amt,note});save();m.remove();render()};
- if(x)$('dl').onclick=()=>ask('Hapus data ini?',()=>{a.al=a.al.filter(y=>y.id!==x.id);save();m.remove();render()});
+ if(x)$('dl').onclick=()=>ask('Hapus data ini?',()=>{a.al=a.al.filter(y=>y.id!==x.id);ocur=null;save();m.remove();render()});
 }
 const lastD=c=>c.tx.reduce((m,x)=>x.d>m?x.d:m,'');
 function sortC(a){return a.slice().sort((x,y)=>so==='big'?bal(y)-bal(x):so==='az'?x.name.localeCompare(y.name):(lastD(y).localeCompare(lastD(x))||y.id-x.id))}
