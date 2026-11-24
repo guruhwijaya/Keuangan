@@ -75,15 +75,24 @@ function list(){
  ${cs.length?cs.map(c=>{const b=bal(c);return `<div class="row" onclick="cur=${c.id};view='detail';render()"><div class="av">${esc(c.name[0]||'?').toUpperCase()}</div><div class="nm">${esc(c.name)}</div><div class="am ${b>0?'r':'g'}">${b>0?rp(b):b<0?rp(b):'Rp 0'}<small>${b>0?'Utang Pelanggan':b<0?'Utang Saya':'Lunas'}</small>${itm(c)>0?`<small style="color:var(--pri)">Pinjam ${itm(c)} barang</small>`:''}</div></div>`}).join(''):'<div class="empty">Belum ada data</div>'}
  <button class="fab" onclick="sheet()">+ CATAT UTANG</button>`}
 function detail(){const c=S.c.find(x=>x.id===cur);if(!c){view='list';return list()}const b=bal(c);
- return `<div class="dh"><button onclick="view='list';render()">←</button><span style="font-size:18px;font-weight:600">${esc(c.name)}</span></div>
+ return `<div class="dh"><button onclick="view='list';render()">←</button><span style="font-size:18px;font-weight:600;flex:1">${esc(c.name)}</span><button onclick="nameSheet(${c.id})" aria-label="Edit nama" style="font-size:20px">✎</button></div>
  <div class="big"><small>${b>0?'Utang Pelanggan':b<0?'Utang Saya':'Lunas'}</small><p class="${b>0?'r':'g'}">${rp(b)}</p>${itm(c)>0?`<small style="color:var(--pri)">Pinjam ${itm(c)} barang</small>`:''}</div>
  <div class="acts"><button style="background:var(--red)" onclick="sheet(${c.id},'u')">Beri Utang</button><button style="background:var(--grn)" onclick="sheet(${c.id},'b')">Terima Bayar</button></div>
  ${c.tx.map((x,i)=>({x,i})).reverse().map(({x,i})=>`<div class="tx" style="cursor:pointer" onclick="editTx(${c.id},${i})"><div>${x.a?(x.t==='u'?'Utang':'Pembayaran'):'Catatan'}${x.n?' · '+esc(x.n):''}${x.q?' · '+x.q+' barang':''}<small>${x.d}</small></div><b class="${x.t==='u'?'r':'g'}">${x.a?(x.t==='u'?'+':'−')+rp(x.a):''}</b></div>`).join('')||'<div class="empty">Belum ada transaksi</div>'}
  <div style="text-align:center"><button class="del" onclick="ask('Hapus pelanggan ini?',()=>{S.c=S.c.filter(x=>x.id!==${c.id});save();view='list';render()})">Hapus pelanggan</button></div>`}
+function nameSheet(id){
+ const c=S.c.find(x=>x.id===id);if(!c)return;
+ const m=document.createElement('div');m.className='mask';
+ m.innerHTML=`<div class="sheet"><h3>Edit Nama Pelanggan</h3><label>Nama pelanggan</label><input id="cn" maxlength="60" value="${esc(c.name)}"><div style="display:flex;gap:8px"><button class="btn" style="background:var(--mut)" id="cx">Batal</button><button class="btn" style="background:var(--pri)" id="ok">Simpan</button></div></div>`;
+ document.body.appendChild(m);const $=k=>m.querySelector('#'+k);
+ $('cx').onclick=()=>m.remove();m.onclick=e=>{if(e.target===m)m.remove()};
+ $('ok').onclick=()=>{const v=$('cn').value.trim();if(!v)return alert('Nama tidak boleh kosong');c.name=v;save();m.remove();render()};
+ setTimeout(()=>{const i=$('cn');i.focus();i.select()},50)
+}
 function sheet(id,t){
  const m=document.createElement('div');m.className='mask';
  m.innerHTML=`<div class="sheet"><h3>Catat Utang</h3>
- ${id?'':'<label>Pelanggan</label><select id="sc">'+S.c.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')+'<option value="new">+ Pelanggan baru</option></select><input id="nn" placeholder="Nama pelanggan baru" style="display:none">'}
+ ${id?'':'<label>Pelanggan</label><select id="sc"><option value="new">+ Pelanggan baru</option>'+S.c.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')+'</select><input id="nn" placeholder="Nama pelanggan baru" style="display:none">'}
  <div class="seg"><button id="bu" class="on">Beri Utang</button><button id="bb">Terima Bayar</button></div>
  <label>Jumlah (Rp)</label><input id="am" type="number" inputmode="numeric" placeholder="0">
  <label>Catatan</label><input id="no" placeholder="Opsional">
@@ -92,7 +101,7 @@ function sheet(id,t){
  document.body.appendChild(m);const $=i=>m.querySelector('#'+i);let ty=t||'u';
  const sync=()=>{$('bu').className=ty==='u'?'on':'';$('bb').className=ty==='b'?'on':''};sync();
  $('bu').onclick=()=>{ty='u';sync()};$('bb').onclick=()=>{ty='b';sync()};
- if(!id){const f=()=>{$('nn').style.display=($('sc').value==='new'||!S.c.length)?'block':'none'};if(!S.c.length)$('sc').value='new';$('sc').onchange=f;f()}
+ if(!id){const f=()=>{$('nn').style.display=($('sc').value==='new'||!S.c.length)?'block':'none'};$('sc').value='new';$('sc').onchange=f;f();setTimeout(()=>$('nn').focus(),50)}
  $('cx').onclick=()=>m.remove();m.onclick=e=>{if(e.target===m)m.remove()};
  $('ok').onclick=()=>{const a=parseInt($('am').value);if(a<0||(!a&&!$('no').value.trim()))return alert('Isi jumlah atau catatan');
   let c;if(id)c=S.c.find(x=>x.id===id);else if($('sc').value==='new'){const n=$('nn').value.trim();if(!n)return alert('Isi nama');c={id:Date.now(),name:n,tx:[]};S.c.unshift(c)}else c=S.c.find(x=>x.id==$('sc').value);
