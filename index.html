@@ -55,6 +55,12 @@ S.c=[]}
 S.loans=S.loans||[];S.sv=S.sv||[];
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}if(window.cloudSave)cloudSave()};
 const ini=n=>{n=String(n||'').trim();if(!n)return '?';try{if(window.Intl&&Intl.Segmenter){for(const g of new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(n))return g.segment.toUpperCase()}}catch(e){}return (Array.from(n)[0]||'?').toUpperCase()};
+const num=v=>parseInt(String(v).replace(/\D/g,''),10);
+document.addEventListener('input',e=>{const t=e.target;if(!t||!t.classList||!t.classList.contains('money'))return;
+ const pos=t.selectionStart,before=t.value.slice(0,pos).replace(/\D/g,'').length,d=t.value.replace(/\D/g,'').replace(/^0+(?=\d)/,'');
+ const f=d?Number(d).toLocaleString('id-ID'):'';t.value=f;
+ let n=0,i=0;for(;i<f.length&&n<before;i++){if(/\d/.test(f[i]))n++}
+ try{t.setSelectionRange(i,i)}catch(_){}});
 const itm=c=>0;
 const rp=n=>'Rp'+Math.abs(n).toLocaleString('id-ID');
 const bal=c=>c.tx.reduce((s,x)=>s+(x.t==='u'?x.a:-x.a),0);
@@ -95,7 +101,7 @@ function sheet(id,t){
  m.innerHTML=`<div class="sheet"><h3>Catat Utang</h3>
  ${id?'':'<label>Pelanggan</label><select id="sc"><option value="new">+ Pelanggan baru</option>'+S.c.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')+'</select><input id="nn" placeholder="Nama pelanggan baru" style="display:none">'}
  <div class="seg"><button id="bu" class="on">Beri Utang</button><button id="bb">Terima Bayar</button></div>
- <label>Jumlah (Rp)</label><input id="am" type="number" inputmode="numeric" placeholder="0">
+ <label>Jumlah (Rp)</label><input id="am" class="money" type="text" inputmode="numeric" autocomplete="off" placeholder="0">
  <label>Catatan</label><input id="no" placeholder="Opsional">
  <label>Tanggal</label><input id="dt" type="date" value="${today}">
  <div style="display:flex;gap:8px"><button class="btn" style="background:var(--mut)" id="cx">Batal</button><button class="btn" style="background:var(--pri)" id="ok">Simpan</button></div></div>`;
@@ -104,7 +110,7 @@ function sheet(id,t){
  $('bu').onclick=()=>{ty='u';sync()};$('bb').onclick=()=>{ty='b';sync()};
  if(!id){const f=()=>{$('nn').style.display=($('sc').value==='new'||!S.c.length)?'block':'none'};$('sc').value='new';$('sc').onchange=f;f();setTimeout(()=>$('nn').focus(),50)}
  $('cx').onclick=()=>m.remove();m.onclick=e=>{if(e.target===m)m.remove()};
- $('ok').onclick=()=>{const a=parseInt($('am').value);if(a<0||(!a&&!$('no').value.trim()))return alert('Isi jumlah atau catatan');
+ $('ok').onclick=()=>{const a=num($('am').value);if(a<0||(!a&&!$('no').value.trim()))return alert('Isi jumlah atau catatan');
   let c;if(id)c=S.c.find(x=>x.id===id);else if($('sc').value==='new'){const n=$('nn').value.trim();if(!n)return alert('Isi nama');c={id:Date.now(),name:n,tx:[]};S.c.unshift(c)}else c=S.c.find(x=>x.id==$('sc').value);
   c.tx.push({t:ty,a:a||0,n:$('no').value.trim(),d:$('dt').value||today});save();m.remove();render()}}
 function loans(){
@@ -174,20 +180,20 @@ function svDetail(){
 function svSheet(id){
  const a=id?S.sv.find(x=>x.id===id):null;
  const m=document.createElement('div');m.className='mask';
- m.innerHTML=`<div class="sheet"><h3>${a?'Edit Tabungan':'Tambah Tabungan'}</h3><label>Nama (bank / tempat)</label><input id="sn" value="${a?esc(a.name):''}" placeholder="Contoh: Bank BCA"><label>Total (Rp)</label><input id="st" type="number" inputmode="numeric" value="${a?a.total:''}"><div style="display:flex;gap:8px"><button class="btn" style="background:var(--mut)" id="cx">Batal</button><button class="btn" style="background:var(--pri)" id="ok">Simpan</button></div>${a?'<button class="del" id="dl">Hapus tabungan</button>':''}</div>`;
+ m.innerHTML=`<div class="sheet"><h3>${a?'Edit Tabungan':'Tambah Tabungan'}</h3><label>Nama (bank / tempat)</label><input id="sn" value="${a?esc(a.name):''}" placeholder="Contoh: Bank BCA"><label>Total (Rp)</label><input id="st" class="money" type="text" inputmode="numeric" autocomplete="off" value="${a?a.total.toLocaleString('id-ID'):''}"><div style="display:flex;gap:8px"><button class="btn" style="background:var(--mut)" id="cx">Batal</button><button class="btn" style="background:var(--pri)" id="ok">Simpan</button></div>${a?'<button class="del" id="dl">Hapus tabungan</button>':''}</div>`;
  document.body.appendChild(m);const $=k=>m.querySelector('#'+k);
  $('cx').onclick=()=>m.remove();m.onclick=e=>{if(e.target===m)m.remove()};
- $('ok').onclick=()=>{const name=$('sn').value.trim(),total=parseInt($('st').value)||0;if(!name||total<=0)return alert('Isi nama dan total');if(a){a.name=name;a.total=total}else S.sv.push({id:Date.now(),name,total,al:[]});save();m.remove();render()};
+ $('ok').onclick=()=>{const name=$('sn').value.trim(),total=num($('st').value)||0;if(!name||total<=0)return alert('Isi nama dan total');if(a){a.name=name;a.total=total}else S.sv.push({id:Date.now(),name,total,al:[]});save();m.remove();render()};
  if(a)$('dl').onclick=()=>ask('Hapus tabungan ini?',()=>{S.sv=S.sv.filter(x=>x.id!==a.id);scur=null;save();m.remove();render()});
 }
 function alSheet(sid,aid){
  const a=S.sv.find(x=>x.id===sid),x=aid?a.al.find(y=>y.id===aid):null;
  const names=[...new Set(S.sv.flatMap(s=>s.al.map(y=>y.who)).concat(S.c.map(c=>c.name)))];
  const m=document.createElement('div');m.className='mask';
- m.innerHTML=`<div class="sheet"><h3>${x?'Edit Pemilik Dana':'Tambah Pemilik Dana'}</h3><label>Nama pemilik</label><input id="aw" list="pn2" value="${x?esc(x.who):''}"><datalist id="pn2">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist><label>Jumlah (Rp)</label><input id="aa" type="number" inputmode="numeric" value="${x?x.amt:''}"><label>Catatan</label><input id="an" value="${x?esc(x.note||''):''}" placeholder="Opsional"><div style="display:flex;gap:8px"><button class="btn" style="background:var(--mut)" id="cx">Batal</button><button class="btn" style="background:var(--pri)" id="ok">Simpan</button></div>${x?'<button class="del" id="dl">Hapus</button>':''}</div>`;
+ m.innerHTML=`<div class="sheet"><h3>${x?'Edit Pemilik Dana':'Tambah Pemilik Dana'}</h3><label>Nama pemilik</label><input id="aw" list="pn2" value="${x?esc(x.who):''}"><datalist id="pn2">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist><label>Jumlah (Rp)</label><input id="aa" class="money" type="text" inputmode="numeric" autocomplete="off" value="${x?x.amt.toLocaleString('id-ID'):''}"><label>Catatan</label><input id="an" value="${x?esc(x.note||''):''}" placeholder="Opsional"><div style="display:flex;gap:8px"><button class="btn" style="background:var(--mut)" id="cx">Batal</button><button class="btn" style="background:var(--pri)" id="ok">Simpan</button></div>${x?'<button class="del" id="dl">Hapus</button>':''}</div>`;
  document.body.appendChild(m);const $=k=>m.querySelector('#'+k);
  $('cx').onclick=()=>m.remove();m.onclick=e=>{if(e.target===m)m.remove()};
- $('ok').onclick=()=>{const who=$('aw').value.trim(),amt=parseInt($('aa').value)||0,note=$('an').value.trim();if(!who||amt<=0)return alert('Isi nama dan jumlah');if(x)Object.assign(x,{who,amt,note});else a.al.push({id:Date.now(),who,amt,note});save();m.remove();render()};
+ $('ok').onclick=()=>{const who=$('aw').value.trim(),amt=num($('aa').value)||0,note=$('an').value.trim();if(!who||amt<=0)return alert('Isi nama dan jumlah');if(x)Object.assign(x,{who,amt,note});else a.al.push({id:Date.now(),who,amt,note});save();m.remove();render()};
  if(x)$('dl').onclick=()=>ask('Hapus data ini?',()=>{a.al=a.al.filter(y=>y.id!==x.id);save();m.remove();render()});
 }
 const lastD=c=>c.tx.reduce((m,x)=>x.d>m?x.d:m,'');
@@ -250,7 +256,7 @@ function editTx(id,i){
  const m=document.createElement('div');m.className='mask';
  m.innerHTML=`<div class="sheet"><h3>Edit Transaksi</h3>
  <div class="seg"><button id="bu">Utang</button><button id="bb">Pembayaran</button></div>
- <label>Jumlah (Rp)</label><input id="am" type="number" inputmode="numeric" value="${x.a}">
+ <label>Jumlah (Rp)</label><input id="am" class="money" type="text" inputmode="numeric" autocomplete="off" value="${x.a?x.a.toLocaleString('id-ID'):''}">
  <label>Catatan</label><input id="no" value="${esc(x.n||'')}">
  <label>Tanggal</label><input id="dt" type="date" value="${x.d}">
  <div style="display:flex;gap:8px"><button class="btn" style="background:var(--mut)" id="cx">Batal</button><button class="btn" style="background:var(--pri)" id="ok">Simpan</button></div>
@@ -260,7 +266,7 @@ function editTx(id,i){
  $('bu').onclick=()=>{ty='u';sync()};$('bb').onclick=()=>{ty='b';sync()};
  $('cx').onclick=()=>m.remove();m.onclick=e=>{if(e.target===m)m.remove()};
  $('dl').onclick=()=>ask('Hapus transaksi ini?',()=>{c.tx.splice(i,1);save();m.remove();render()});
- $('ok').onclick=()=>{const a=parseInt($('am').value);if(a<0||(!a&&!$('no').value.trim()))return alert('Isi jumlah atau catatan');x.a=a||0;x.t=ty;x.n=$('no').value.trim();x.d=$('dt').value||x.d;save();m.remove();render()}
+ $('ok').onclick=()=>{const a=num($('am').value);if(a<0||(!a&&!$('no').value.trim()))return alert('Isi jumlah atau catatan');x.a=a||0;x.t=ty;x.n=$('no').value.trim();x.d=$('dt').value||x.d;save();m.remove();render()}
 }
 window.getS=()=>S;window.setS=o=>{S=o;S.loans=S.loans||[];S.sv=S.sv||[];try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}render()};
 lock();render();
