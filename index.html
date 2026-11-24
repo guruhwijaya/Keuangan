@@ -4,9 +4,9 @@
 <title>Catatan Utang</title>
 <meta name="theme-color" content="#0a84ff">
 <link rel="manifest" href="manifest.json">
-<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
-<link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="48x48" href="favicon-48.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Catatan Utang">
 <style>
@@ -245,8 +245,9 @@ lock();render();
 const firebaseConfig={apiKey:"AIzaSyDLXRzNiUZmi-7fr3MusUFgilecSW5otQY",authDomain:"keuangan-b680f.firebaseapp.com",projectId:"keuangan-b680f"};
 // ===========================================================================================
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import {getAuth,GoogleAuthProvider,signInWithPopup,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {getFirestore,doc,onSnapshot,setDoc} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+const EMAIL="guruhwijaya87@gmail.com";
 const st=document.createElement('div');st.style.cssText='position:fixed;bottom:4px;left:8px;font-size:11px;color:var(--mut);z-index:5';document.body.appendChild(st);
 const say=t=>{st.textContent=t};
 function overlay(html){let m=document.getElementById('lg');if(!m){m=document.createElement('div');m.id='lg';m.className='mask';m.style.cssText='z-index:98;background:var(--bg);align-items:center';document.body.appendChild(m)}m.innerHTML='<div class="sheet" style="max-width:340px;border-radius:16px;text-align:center">'+html+'</div>';return m}
@@ -261,7 +262,13 @@ if(!firebaseConfig.apiKey||firebaseConfig.apiKey==="ISI"){
   window.cloud={out:()=>signOut(auth),email:()=>auth.currentUser&&auth.currentUser.email};
   onAuthStateChanged(auth,u=>{
     if(unsub){unsub();unsub=null}on=false;
-    if(!u){say('Belum masuk');const m=overlay('<h3>Catatan Utang</h3><div>Masuk untuk menyinkronkan data.</div><button class="btn" style="background:var(--pri)" id="go">Masuk dengan Google</button>');m.querySelector('#go').onclick=()=>signInWithPopup(auth,new GoogleAuthProvider()).catch(e=>alert('Gagal masuk: '+e.code));return}
+    if(!u){say('Belum masuk');
+      const m=overlay('<img src="icon-192.png" alt="" style="width:96px;height:96px;margin:0 auto;display:block"><h3>Catatan Utang</h3><div>Masukkan PIN</div><input id="pn" type="password" inputmode="numeric" autocomplete="current-password" placeholder="PIN" style="text-align:center;font-size:22px;letter-spacing:6px"><div id="er" style="color:var(--red);font-size:13px;min-height:16px"></div><button class="btn" style="background:var(--pri)" id="go">Masuk</button>');
+      const pn=m.querySelector('#pn'),er=m.querySelector('#er'),go=m.querySelector('#go');
+      const msg=c=>c==='auth/too-many-requests'?'Terlalu banyak percobaan, coba lagi nanti':c==='auth/operation-not-allowed'?'Email/Password belum diaktifkan di Firebase':c==='auth/network-request-failed'?'Tidak ada koneksi internet':(c==='auth/invalid-credential'||c==='auth/wrong-password'||c==='auth/user-not-found'||c==='auth/invalid-login-credentials')?'PIN salah':'Gagal masuk: '+c;
+      const doLogin=()=>{const v=pn.value;if(!v)return;er.textContent='';go.disabled=true;go.textContent='Masuk\u2026';signInWithEmailAndPassword(auth,EMAIL,v).catch(e=>{er.textContent=msg(e.code);go.disabled=false;go.textContent='Masuk';pn.value='';pn.focus()})};
+      go.onclick=doLogin;pn.onkeydown=e=>{if(e.key==='Enter')doLogin()};
+      return}
     close();on=true;say('\u2601 Menghubungkan\u2026');
     unsub=onSnapshot(ref,snap=>{
       if(snap.metadata.hasPendingWrites)return;
@@ -271,4 +278,5 @@ if(!firebaseConfig.apiKey||firebaseConfig.apiKey==="ISI"){
   });
 }
 </script>
+<script>if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))</script>
 </body></html>
