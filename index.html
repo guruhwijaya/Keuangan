@@ -176,7 +176,8 @@ function svDetail(){
  return `<div class="dh"><button onclick="scur=null;render()">←</button><span style="font-size:18px;font-weight:600">${esc(a.name)}</span></div>
  <div class="big"><small>Total tabungan</small><p class="g">${rp(a.total)}</p><small>Dialokasikan ${rp(alloc(a))} · <b class="${r<0?'r':''}">Sisa ${rs(r)}</b></small></div>
  <div class="acts"><button style="background:var(--pri)" onclick="alSheet(${a.id})">+ Tambah Pemilik</button><button style="background:var(--mut)" onclick="svSheet(${a.id})">Edit Tabungan</button></div>
- ${a.al.map(x=>`<div class="tx" style="cursor:pointer" onclick="alSheet(${a.id},${x.id})"><div>${esc(x.who)}<small>${esc(x.note||'')}</small></div><b>${rp(x.amt)}</b></div>`).join('')||'<div class="empty">Belum ada pemilik dana</div>'}`}
+ ${a.al.map(x=>`<div class="tx" style="cursor:pointer" onclick="alSheet(${a.id},${x.id})"><div>${esc(x.who)}<small>${esc(x.note||'')}</small></div><b>${rp(x.amt)}</b></div>`).join('')||'<div class="empty">Belum ada pemilik dana</div>'}
+ ${(a.h&&a.h.length)?'<div style="padding:14px 16px 6px;font-weight:600;color:var(--mut)">Riwayat Penarikan</div>'+a.h.map(h=>`<div class="tx"><div>${esc(h.who)}<small>${esc(h.d)}${h.note?' · '+esc(h.note):''}</small></div><b class="r">-${rp(h.amt)}</b></div>`).join(''):''}`}
 function svSheet(id){
  const a=id?S.sv.find(x=>x.id===id):null;
  const m=document.createElement('div');m.className='mask';
@@ -186,13 +187,27 @@ function svSheet(id){
  $('ok').onclick=()=>{const name=$('sn').value.trim(),total=num($('st').value)||0;if(!name||total<=0)return alert('Isi nama dan total');if(a){a.name=name;a.total=total}else S.sv.push({id:Date.now(),name,total,al:[]});save();m.remove();render()};
  if(a)$('dl').onclick=()=>ask('Hapus tabungan ini?',()=>{S.sv=S.sv.filter(x=>x.id!==a.id);scur=null;save();m.remove();render()});
 }
+function useSheet(sid,aid){
+ const a=S.sv.find(x=>x.id===sid),x=a.al.find(y=>y.id===aid);if(!x)return;
+ const m=document.createElement('div');m.className='mask';
+ m.innerHTML=`<div class="sheet"><h3>Pakai / Tarik Dana</h3><small style="color:var(--mut)">${esc(x.who)} · saldo ${rp(x.amt)}</small><label>Jumlah dipakai (Rp)</label><input id="ua" class="money" type="text" inputmode="numeric" autocomplete="off" placeholder="0"><label>Catatan</label><input id="un" placeholder="Opsional"><div style="display:flex;gap:8px"><button class="btn" style="background:var(--mut)" id="cx">Batal</button><button class="btn" style="background:#c62d36" id="ok">Kurangi</button></div></div>`;
+ document.body.appendChild(m);const $=k=>m.querySelector('#'+k);
+ $('cx').onclick=()=>m.remove();m.onclick=e=>{if(e.target===m)m.remove()};
+ $('ok').onclick=()=>{const v=num($('ua').value)||0,note=$('un').value.trim();
+  if(v<=0)return alert('Isi jumlah');
+  if(v>x.amt)return alert('Melebihi saldo '+x.who+' ('+rp(x.amt)+')');
+  x.amt-=v;a.total-=v;(a.h=a.h||[]).unshift({id:Date.now(),d:today,who:x.who,amt:v,note});
+  save();m.remove();render()};
+ setTimeout(()=>$('ua').focus(),50)
+}
 function alSheet(sid,aid){
  const a=S.sv.find(x=>x.id===sid),x=aid?a.al.find(y=>y.id===aid):null;
  const names=[...new Set(S.sv.flatMap(s=>s.al.map(y=>y.who)).concat(S.c.map(c=>c.name)))];
  const m=document.createElement('div');m.className='mask';
- m.innerHTML=`<div class="sheet"><h3>${x?'Edit Pemilik Dana':'Tambah Pemilik Dana'}</h3><label>Nama pemilik</label><input id="aw" list="pn2" value="${x?esc(x.who):''}"><datalist id="pn2">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist><label>Jumlah (Rp)</label><input id="aa" class="money" type="text" inputmode="numeric" autocomplete="off" value="${x?x.amt.toLocaleString('id-ID'):''}"><label>Catatan</label><input id="an" value="${x?esc(x.note||''):''}" placeholder="Opsional"><div style="display:flex;gap:8px"><button class="btn" style="background:var(--mut)" id="cx">Batal</button><button class="btn" style="background:var(--pri)" id="ok">Simpan</button></div>${x?'<button class="del" id="dl">Hapus</button>':''}</div>`;
+ m.innerHTML=`<div class="sheet"><h3>${x?'Edit Pemilik Dana':'Tambah Pemilik Dana'}</h3><label>Nama pemilik</label><input id="aw" list="pn2" value="${x?esc(x.who):''}"><datalist id="pn2">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist><label>Jumlah (Rp)</label><input id="aa" class="money" type="text" inputmode="numeric" autocomplete="off" value="${x?x.amt.toLocaleString('id-ID'):''}"><label>Catatan</label><input id="an" value="${x?esc(x.note||''):''}" placeholder="Opsional"><div style="display:flex;gap:8px"><button class="btn" style="background:var(--mut)" id="cx">Batal</button><button class="btn" style="background:var(--pri)" id="ok">Simpan</button></div>${x?'<button class="btn" style="background:#c62d36;margin-top:10px;width:100%" id="us">Pakai / Tarik Dana</button><button class="del" id="dl">Hapus</button>':''}</div>`;
  document.body.appendChild(m);const $=k=>m.querySelector('#'+k);
  $('cx').onclick=()=>m.remove();m.onclick=e=>{if(e.target===m)m.remove()};
+ if(x)$('us').onclick=()=>{m.remove();useSheet(sid,aid)};
  $('ok').onclick=()=>{const who=$('aw').value.trim(),amt=num($('aa').value)||0,note=$('an').value.trim();if(!who||amt<=0)return alert('Isi nama dan jumlah');if(x)Object.assign(x,{who,amt,note});else a.al.push({id:Date.now(),who,amt,note});save();m.remove();render()};
  if(x)$('dl').onclick=()=>ask('Hapus data ini?',()=>{a.al=a.al.filter(y=>y.id!==x.id);save();m.remove();render()});
 }
