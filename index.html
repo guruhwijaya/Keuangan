@@ -30,6 +30,7 @@ header .sp{flex:1;letter-spacing:.12em;text-transform:uppercase}
 input:focus,select:focus{outline:none;border-color:var(--pri2);box-shadow:0 0 0 3px rgba(47,125,225,.22)}
 .chips{display:flex;gap:8px;overflow-x:auto;padding:6px 14px 12px}.chip{white-space:nowrap;border:0;border-radius:20px;padding:10px 16px;background:var(--chip);color:var(--tx);font:inherit;font-weight:500}.chip.on{background:linear-gradient(135deg,var(--pri2),var(--pri));color:#fff;font-weight:600;box-shadow:0 4px 10px rgba(31,99,198,.35)}
 .row{display:flex;align-items:center;gap:14px;padding:13px 16px;background:var(--card);border-bottom:1px solid var(--ln);cursor:pointer;transition:background .15s}.row:active{background:rgba(47,125,225,.09)}
+.calcbar{display:flex;gap:6px;align-items:center;margin:-4px 0 12px}.calcbar button{width:44px;height:38px;border:0;border-radius:10px;background:#e8edf5;color:#1f2a44;font-size:20px;font-weight:700;font-family:inherit}.calcbar button.eq{background:var(--pri2,#1f63c6);color:#fff}.calcbar .cres{margin-left:auto;font-weight:700;color:var(--pri2,#1f63c6);font-size:16px}
 .av{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--pri2),#1b4a97);color:#fff;display:grid;place-items:center;font-size:20px;font-weight:700;flex:none;box-shadow:0 3px 8px rgba(31,99,198,.30)}
 .nm{flex:1;font-size:17px;font-weight:500}.am{text-align:right;font-weight:700;font-size:17px;font-variant-numeric:tabular-nums}.am small{display:block;font-weight:400;font-size:12px;color:var(--mut)}
 .late{font-size:11px;color:var(--red);display:block}
@@ -55,17 +56,82 @@ S.c=[]}
 S.loans=S.loans||[];S.sv=S.sv||[];
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}if(window.cloudSave)cloudSave()};
 const ini=n=>{n=String(n||'').trim();if(!n)return '?';try{if(window.Intl&&Intl.Segmenter){for(const g of new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(n))return g.segment.toUpperCase()}}catch(e){}return (Array.from(n)[0]||'?').toUpperCase()};
-const num=v=>parseInt(String(v).replace(/\D/g,''),10);
+/* ---- input nominal mode kalkulator: 500+1.000-200 ---- */
+const OPS='+-×÷';
+const hasOp=v=>/[+\-×÷*\/x]/i.test(String(v));
+const calc=v=>{
+ let s=String(v).replace(/\./g,'').replace(/[x*]/gi,'×').replace(/\//g,'÷').replace(/[^0-9+\-×÷]/g,'');
+ s=s.replace(/[+\-×÷]+$/,'');
+ if(!s)return NaN;
+ if(!/^\d+([+\-×÷]\d+)*$/.test(s))return NaN;
+ const r=Function('"use strict";return ('+s.replace(/×/g,'*').replace(/÷/g,'/')+')')();
+ return isFinite(r)?Math.round(r):NaN;
+};
+const num=v=>{const n=calc(v);return n<0?NaN:n};
+const fmtExpr=raw=>{
+ let s=String(raw).replace(/[x*]/gi,'×').replace(/\//g,'÷').replace(/[^0-9+\-×÷]/g,'');
+ s=s.replace(/^[+\-×÷]+/,'').replace(/([+\-×÷])[+\-×÷]+/g,(m)=>m[m.length-1]);
+ return s.replace(/\d+/g,d=>Number(d.replace(/^0+(?=\d)/,'')).toLocaleString('id-ID'));
+};
+const keptCount=s=>(String(s).match(/[0-9+\-×÷*\/x]/gi)||[]).length;
+function calcBar(t){
+ let b=t.nextElementSibling;
+ if(b&&b.classList&&b.classList.contains('calcbar'))return b;
+ b=document.createElement('div');b.className='calcbar';
+ b.innerHTML='<button type="button" data-k="+">+</button><button type="button" data-k="-">−</button><button type="button" data-k="×">×</button><button type="button" data-k="÷">÷</button><button type="button" data-k="=" class="eq">=</button><span class="cres"></span>';
+ b.addEventListener('pointerdown',e=>e.preventDefault());
+ b.addEventListener('click',e=>{const k=e.target&&e.target.dataset&&e.target.dataset.k;if(!k)return;
+  if(k==='='){const n=calc(t.value);if(!isNaN(n)&&n>=0){t.value=n?n.toLocaleString('id-ID'):'';}t.dispatchEvent(new Event('input',{bubbles:true}));return}
+  const p=t.selectionStart==null?t.value.length:t.selectionStart,q=t.selectionEnd==null?p:t.selectionEnd;
+  t.value=t.value.slice(0,p)+k+t.value.slice(q);
+  try{t.setSelectionRange(p+1,p+1)}catch(_){}
+  t.dispatchEvent(new Event('input',{bubbles:true}));});
+ t.after(b);return b;
+}
+document.addEventListener('focusin',e=>{const t=e.target;if(!t||!t.classList||!t.classList.contains('money'))return;
+ const b=calcBar(t);setTimeout(()=>{try{b.scrollIntoView({block:'nearest'})}catch(_){}},350)});
 document.addEventListener('input',e=>{const t=e.target;if(!t||!t.classList||!t.classList.contains('money'))return;
- const pos=t.selectionStart,before=t.value.slice(0,pos).replace(/\D/g,'').length,d=t.value.replace(/\D/g,'').replace(/^0+(?=\d)/,'');
- const f=d?Number(d).toLocaleString('id-ID'):'';t.value=f;
- let n=0,i=0;for(;i<f.length&&n<before;i++){if(/\d/.test(f[i]))n++}
- try{t.setSelectionRange(i,i)}catch(_){}});
+ const pos=t.selectionStart==null?t.value.length:t.selectionStart,before=keptCount(t.value.slice(0,pos));
+ const f=fmtExpr(t.value);t.value=f;
+ let n=0,i=0;for(;i<f.length&&n<before;i++){if(/[0-9+\-×÷]/.test(f[i]))n++}
+ if(pos>=t.value.length+0&&before>=keptCount(f))i=f.length;
+ try{t.setSelectionRange(i,i)}catch(_){}
+ const b=t.nextElementSibling;
+ if(b&&b.classList&&b.classList.contains('calcbar')){const r=b.querySelector('.cres'),v=calc(f);
+  r.textContent=(hasOp(f)&&!isNaN(v))?'= '+(v<0?'-':'')+Math.abs(v).toLocaleString('id-ID'):'';}});
 const itm=c=>0;
 const rp=n=>'Rp'+Math.abs(n).toLocaleString('id-ID');
 const bal=c=>c.tx.reduce((s,x)=>s+(x.t==='u'?x.a:-x.a),0);
 const dueState=c=>{if(bal(c)<=0)return '';const ds=c.tx.filter(x=>x.t==='u'&&x.due).map(x=>x.due).sort();if(!ds.length)return '';return ds[0]<today?'late':ds[0]===today?'today':''};
 const esc=s=>String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+
+/* ikon bank otomatis: cocokkan nama -> warna + singkatan merek */
+const BANKS=[
+ ['seabank',['seabank','sea bank'],'#F26A21','#fff','SB'],
+ ['bri',['bri','rakyat indonesia'],'#00529C','#F7941D','BRI'],
+ ['bca',['bca','central asia'],'#0060AF','#fff','BCA'],
+ ['mandiri',['mandiri'],'#003D79','#FCB131','M'],
+ ['bni',['bni','negara indonesia'],'#F15A22','#00A19B','BNI'],
+ ['bsi',['bsi','syariah indonesia'],'#00A39D','#fff','BSI'],
+ ['jago',['jago'],'#FFB300','#222','JG'],
+ ['jenius',['jenius','btpn'],'#00A7E1','#fff','J'],
+ ['cimb',['cimb'],'#7E1416','#fff','CIMB'],
+ ['permata',['permata'],'#00A651','#fff','PB'],
+ ['danamon',['danamon'],'#F58220','#003B71','DM'],
+ ['dana',['dana'],'#118EEA','#fff','DANA'],
+ ['gopay',['gopay','go-pay','gojek'],'#00AED6','#fff','GP'],
+ ['ovo',['ovo'],'#4C3494','#fff','OVO'],
+ ['shopeepay',['shopeepay','shopee'],'#EE4D2D','#fff','SP'],
+ ['linkaja',['linkaja','link aja'],'#E82529','#fff','LA'],
+ ['blu',['blu '],'#0A5CFF','#fff','blu']
+];
+function bankIcon(name){
+ const n=' '+String(name).toLowerCase()+' ';
+ const b=BANKS.find(x=>x[1].some(k=>n.includes(k.length<=3?' '+k+' ':k)));
+ if(!b)return '<div class="av">🏦</div>';
+ const t=b[4],fs=t.length>=4?11:t.length==3?13:16;
+ return `<div class="av" style="background:${b[2]};color:${b[3]};font-size:${fs}px;letter-spacing:-.3px;box-shadow:0 3px 8px ${b[2]}55">${t}</div>`;
+}
 let view='list',filter='all',q='',cur=null,tab='debt',lsq='',lf='out',lcur=null,scur=null,ocur=null,so='new',mv='menu';
 const tabbar=()=>`<div class="tabs"><button class="${tab==='debt'?'on':''}" onclick="tab='debt';view='list';render()">Utang</button><button class="${tab==='loan'?'on':''}" onclick="tab='loan';lcur=null;render()">Pinjam Barang</button><button class="${tab==='sv'?'on':''}" onclick="tab='sv';scur=null;ocur=null;render()">Tabungan</button><button class="${tab==='more'?'on':''}" onclick="tab='more';mv='menu';render()">Lainnya</button></div>`;
 const chips=[['all','Semua'],['owe','Utang Pelanggan'],['paid','Lunas']];
@@ -168,7 +234,7 @@ function svList(){
  const tot=S.sv.reduce((s,a)=>s+a.total,0),al=S.sv.reduce((s,a)=>s+alloc(a),0);
  return `<header><span class="sp">Tabungan</span></header>
  <div class="sum"><div><small>Total Tabungan</small><p class="g">${rp(tot)}</p></div><div><small>Sudah Dialokasikan</small><p>${rp(al)}</p></div></div>
- ${S.sv.length?S.sv.map(a=>{const r=a.total-alloc(a);return `<div class="row" onclick="scur=${a.id};render()"><div class="av">🏦</div><div class="nm">${esc(a.name)}<small style="display:block;color:var(--mut);font-size:13px">${a.al.length} pemilik · sisa ${rs(r)}</small></div><div class="am g">${rp(a.total)}</div></div>`}).join(''):'<div class="empty">Belum ada tabungan</div>'}
+ ${S.sv.length?S.sv.map(a=>{const r=a.total-alloc(a);return `<div class="row" onclick="scur=${a.id};render()">${bankIcon(a.name)}<div class="nm">${esc(a.name)}<small style="display:block;color:var(--mut);font-size:13px">${a.al.length} pemilik · sisa ${rs(r)}</small></div><div class="am g">${rp(a.total)}</div></div>`}).join(''):'<div class="empty">Belum ada tabungan</div>'}
  <button class="fab" onclick="svSheet()">+ TABUNGAN</button>`}
 function svDetail(){
  const a=S.sv.find(x=>x.id===scur);if(!a){scur=null;return tabbar()+svList()}
