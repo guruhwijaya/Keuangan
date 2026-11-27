@@ -48,8 +48,8 @@ label{font-size:13px;color:var(--mut)}.del{background:none;border:0;color:var(--
 <div id="app"></div>
 <script>
 const KEY='catatan-utang-v1';
-const day=n=>{const d=new Date();d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
-const today=day(0);
+const day=n=>{const d=new Date();d.setDate(d.getDate()+n);return new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
+let today=day(0);
 let S={biz:'NORTH JOENSTONE',c:[]};
 try{const r=localStorage.getItem(KEY);if(r)S=JSON.parse(r);else throw 0}catch(e){
 S.c=[]}
@@ -132,24 +132,29 @@ function bankIcon(name){
  const t=b[4],fs=t.length>=4?11:t.length==3?13:16;
  return `<div class="av" style="background:${b[2]};color:${b[3]};font-size:${fs}px;letter-spacing:-.3px;box-shadow:0 3px 8px ${b[2]}55">${t}</div>`;
 }
-let view='list',filter='all',q='',cur=null,tab='debt',lsq='',lf='out',lcur=null,scur=null,ocur=null,so='new',mv='menu';
+let view='list',filter='owe',q='',cur=null,tab='debt',lsq='',lf='out',lcur=null,scur=null,ocur=null,so='new',mv='menu';
 const tabbar=()=>`<div class="tabs"><button class="${tab==='debt'?'on':''}" onclick="tab='debt';view='list';render()">Utang</button><button class="${tab==='loan'?'on':''}" onclick="tab='loan';lcur=null;render()">Pinjam Barang</button><button class="${tab==='sv'?'on':''}" onclick="tab='sv';scur=null;ocur=null;render()">Tabungan</button><button class="${tab==='more'?'on':''}" onclick="tab='more';mv='menu';render()">Lainnya</button></div>`;
-const chips=[['all','Semua'],['owe','Utang Pelanggan'],['paid','Lunas']];
-function render(){const el=document.getElementById('app');el.innerHTML=tab==='more'?more():tab==='sv'?(scur?(ocur?ownDetail():svDetail()):tabbar()+svList()):tab==='loan'?(lcur?loanDetail():tabbar()+loansG()):view==='list'?tabbar()+list():detail()}
+const chips=[['owe','Daftar Utang'],['paid','Riwayat Lunas']];
+const isPaid=c=>bal(c)===0&&c.tx.some(x=>x.a>0);
+function lunas(id){const c=S.c.find(x=>x.id===id);if(!c||!bal(c))return;
+ ask('Tandai <b>'+esc(c.name)+'</b> LUNAS '+rp(bal(c))+'?',()=>{const k=S.c.find(x=>x.id===id);if(!k)return;const b=bal(k);if(!b)return;
+  k.tx.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),t:b>0?'b':'u',a:Math.abs(b),n:'Lunas',d:today});save();view='list';filter='owe';q='';render();alert(k.name+' lunas, masuk Riwayat')})}
+function render(){today=day(0);const el=document.getElementById('app');el.innerHTML=tab==='more'?more():tab==='sv'?(scur?(ocur?ownDetail():svDetail()):tabbar()+svList()):tab==='loan'?(lcur?loanDetail():tabbar()+loansG()):view==='list'?tabbar()+list():detail()}
 function list(){
  const bs=S.c.map(bal);const up=bs.filter(b=>b>0).reduce((a,b)=>a+b,0),us=-bs.filter(b=>b<0).reduce((a,b)=>a+b,0);
  
- let cs=S.c.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())).filter(c=>{const b=bal(c);return filter==='all'||(filter==='owe'&&b>0)||(filter==='paid'&&b===0)});cs=sortC(cs);
+ let cs=S.c.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())).filter(c=>q.trim()?true:(filter==='paid')===isPaid(c));cs=sortC(cs);
  return `<header><span class="sp">${esc(S.biz)}</span></header>
  <div class="sum"><div><small>Utang Saya</small><p class="g">${rp(us)}</p></div><div><small>Utang Pelanggan</small><p class="r">${rp(up)}</p></div></div>
  <div class="search"><input placeholder="Cari ${S.c.length} pelanggan" value="${esc(q)}" oninput="q=this.value;render();const i=document.querySelector('.search input');i.focus();i.setSelectionRange(q.length,q.length)"></div>
- <div class="chips">${chips.map(([k,l])=>`<button class="chip ${filter===k?'on':''}" onclick="filter='${k}';render()">${l}</button>`).join('')}</div>
+ <div class="chips">${chips.map(([k,l])=>`<button class="chip ${filter===k?'on':''}" onclick="filter='${k}';render()">${l} (${S.c.filter(c=>(k==='paid')===isPaid(c)).length})</button>`).join('')}</div>
  <div class="search" style="padding-top:0"><select onchange="so=this.value;render()"><option value="new" ${so==='new'?'selected':''}>Urutkan: Terbaru</option><option value="big" ${so==='big'?'selected':''}>Urutkan: Utang terbesar</option><option value="az" ${so==='az'?'selected':''}>Urutkan: Nama A–Z</option></select></div>
  ${cs.length?cs.map(c=>{const b=bal(c);return `<div class="row" onclick="cur=${c.id};view='detail';render()"><div class="av">${esc(ini(c.name))}</div><div class="nm">${esc(c.name)}</div><div class="am ${b>0?'r':'g'}">${b>0?rp(b):b<0?rp(b):'Rp 0'}<small>${b>0?'Utang Pelanggan':b<0?'Utang Saya':'Lunas'}</small>${itm(c)>0?`<small style="color:var(--pri)">Pinjam ${itm(c)} barang</small>`:''}</div></div>`}).join(''):'<div class="empty">Belum ada data</div>'}
  <button class="fab" onclick="sheet()">+ CATAT UTANG</button>`}
 function detail(){const c=S.c.find(x=>x.id===cur);if(!c){view='list';return list()}const b=bal(c);
  return `<div class="dh"><button onclick="view='list';render()">←</button><span style="font-size:18px;font-weight:600;flex:1">${esc(c.name)}</span><button onclick="nameSheet(${c.id})" aria-label="Edit nama" style="font-size:20px">✎</button></div>
  <div class="big"><small>${b>0?'Utang Pelanggan':b<0?'Utang Saya':'Lunas'}</small><p class="${b>0?'r':'g'}">${rp(b)}</p>${itm(c)>0?`<small style="color:var(--pri)">Pinjam ${itm(c)} barang</small>`:''}</div>
+ ${b?`<div class="acts"><button style="background:#15803d" onclick="lunas(${c.id})">✓ LUNAS</button></div>`:''}
  <div class="acts"><button style="background:var(--red)" onclick="sheet(${c.id},'u')">Beri Utang</button><button style="background:var(--grn)" onclick="sheet(${c.id},'b')">Terima Bayar</button></div>
  ${c.tx.map((x,i)=>({x,i})).reverse().map(({x,i})=>`<div class="tx" style="cursor:pointer" onclick="editTx(${c.id},${i})"><div>${x.a?(x.t==='u'?'Utang':'Pembayaran'):'Catatan'}${x.n?' · '+esc(x.n):''}${x.q?' · '+x.q+' barang':''}<small>${x.d}</small></div><b class="${x.t==='u'?'r':'g'}">${x.a?(x.t==='u'?'+':'−')+rp(x.a):''}</b></div>`).join('')||'<div class="empty">Belum ada transaksi</div>'}
  <div style="text-align:center"><button class="del" onclick="ask('Hapus pelanggan ini?',()=>{S.c=S.c.filter(x=>x.id!==${c.id});save();view='list';render()})">Hapus pelanggan</button></div>`}
@@ -178,7 +183,7 @@ function sheet(id,t){
  $('cx').onclick=()=>m.remove();m.onclick=e=>{if(e.target===m)m.remove()};
  $('ok').onclick=()=>{const a=num($('am').value);if(a<0||(!a&&!$('no').value.trim()))return alert('Isi jumlah atau catatan');
   let c;if(id)c=S.c.find(x=>x.id===id);else if($('sc').value==='new'){const n=$('nn').value.trim();if(!n)return alert('Isi nama');c={id:Date.now(),name:n,tx:[]};S.c.unshift(c)}else c=S.c.find(x=>x.id==$('sc').value);
-  c.tx.push({t:ty,a:a||0,n:$('no').value.trim(),d:$('dt').value||today});save();m.remove();render()}}
+  c.tx.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),t:ty,a:a||0,n:$('no').value.trim(),d:$('dt').value||today});if(!isPaid(c))filter='owe';save();m.remove();render()}}
 function loans(){
  const L=S.loans,sm=a=>a.reduce((s,l)=>s+l.qty,0),out=L.filter(l=>!l.back);
  const ls=L.filter(l=>(l.person+' '+l.item).toLowerCase().includes(lsq.toLowerCase())).filter(l=>lf==='all'||(lf==='out'&&!l.back)||(lf==='back'&&l.back));
@@ -292,11 +297,11 @@ function alSheet(sid,aid){
 }
 const lastD=c=>c.tx.reduce((m,x)=>x.d>m?x.d:m,'');
 function sortC(a){return a.slice().sort((x,y)=>so==='big'?bal(y)-bal(x):so==='az'?x.name.localeCompare(y.name):(lastD(y).localeCompare(lastD(x))||y.id-x.id))}
-async function dl(name,data){try{const d=await claude.use('downloads');if(d){await d.save({filename:name,data});return}}catch(e){if(e&&e.code==='declined')return}alert('Unduh tidak tersedia di sini. Pakai Salin data.')}
+function dl(name,data){try{const u=URL.createObjectURL(new Blob([data],{type:name.endsWith('.csv')?'text/csv;charset=utf-8':'application/json'}));const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);alert('File diunduh: '+name)}catch(e){alert('Unduh gagal. Pakai Salin data.')}}
 const getPin=()=>{try{return localStorage.getItem('cu-pin')||''}catch(e){return ''}};
 const hp=s=>{let h=5381;for(const ch of s+'cu')h=((h*33)^ch.charCodeAt(0))>>>0;return String(h)};
 function lock(){if(!getPin()||document.getElementById('lk'))return;const m=document.createElement('div');m.id='lk';m.className='mask';m.style.cssText='z-index:99;background:var(--bg);align-items:center';m.innerHTML='<div class="sheet" style="max-width:320px;border-radius:16px;text-align:center"><h3>🔒 Masukkan PIN</h3><input id="pi" type="password" inputmode="numeric" style="text-align:center;font-size:22px"><button class="btn" style="background:var(--pri)" id="go">Buka</button></div>';document.body.appendChild(m);const go=()=>{if(hp(m.querySelector('#pi').value)===getPin())m.remove();else{alert('PIN salah');m.querySelector('#pi').value=''}};m.querySelector('#go').onclick=go;m.querySelector('#pi').onkeydown=e=>{if(e.key==='Enter')go()}}
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')lock()});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){today=day(0);lock()}});
 function pinSheet(){
  const m=document.createElement('div');m.className='mask';const on=!!getPin();
  m.innerHTML=`<div class="sheet"><h3>PIN Aplikasi</h3><label>${on?'PIN baru (4–6 angka)':'Buat PIN (4–6 angka)'}</label><input id="np" type="password" inputmode="numeric" maxlength="6"><div style="display:flex;gap:8px"><button class="btn" style="background:var(--mut)" id="cx">Batal</button><button class="btn" style="background:var(--pri)" id="ok">Simpan</button></div>${on?'<button class="del" id="off">Matikan PIN</button>':''}<small style="color:var(--mut)">PIN ini hanya kunci layar sederhana di perangkat ini, bukan enkripsi.</small></div>`;
@@ -363,7 +368,25 @@ function editTx(id,i){
  $('ok').onclick=()=>{const a=num($('am').value);if(a<0||(!a&&!$('no').value.trim()))return alert('Isi jumlah atau catatan');x.a=a||0;x.t=ty;x.n=$('no').value.trim();x.d=$('dt').value||x.d;save();m.remove();render()}
 }
 window.getS=()=>S;window.setS=o=>{S=o;S.loans=S.loans||[];S.sv=S.sv||[];try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}render()};
-lock();render();
+/* tombol back HP: satu entri riwayat per tingkat menu / jendela */
+const popups=()=>[...document.querySelectorAll('.mask')].filter(m=>m.id!=='lk'&&m.id!=='lg');
+const depth=()=>popups().length+(tab==='debt'?(view==='detail'?1:0):1+(tab==='loan'&&lcur?1:0)+(tab==='sv'&&scur?(ocur?2:1):0)+(tab==='more'&&mv!=='menu'?1:0));
+function goBack(){const p=popups();if(p.length){p[p.length-1].remove();return}
+ if(tab==='debt')view='list';
+ else if(tab==='loan'&&lcur)lcur=null;
+ else if(tab==='sv'&&scur){if(ocur)ocur=null;else scur=null}
+ else if(tab==='more'&&mv!=='menu')mv='menu';
+ else{tab='debt';view='list'}
+ render()}
+let hd=(history.state&&history.state.d)||0,wait=false;
+function syncBack(){if(wait)return;const d=depth();
+ while(hd<d)history.pushState({d:++hd},'');
+ if(hd>d){wait=true;history.go(d-hd)}}
+addEventListener('popstate',e=>{const n=(e.state&&e.state.d)||0;hd=n;
+ if(wait){wait=false;syncBack();return}
+ for(let i=0;i<10&&depth()>n;i++)goBack()});
+new MutationObserver(syncBack).observe(document.body,{childList:true,subtree:true});
+lock();render();syncBack();
 </script>
 <script type="module">
 // ====== ISI DENGAN KONFIGURASI FIREBASE ANDA (Project settings > Your apps > Web app) ======
@@ -371,7 +394,7 @@ const firebaseConfig={apiKey:"AIzaSyDLXRzNiUZmi-7fr3MusUFgilecSW5otQY",authDomai
 // ===========================================================================================
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import {getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import {getFirestore,doc,onSnapshot,setDoc} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import {getFirestore,doc,onSnapshot,runTransaction} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 const EMAIL="guruhwijaya87@gmail.com";
 const st=document.createElement('div');st.style.cssText='position:fixed;bottom:4px;left:8px;font-size:11px;color:var(--mut);z-index:5';document.body.appendChild(st);
 const say=t=>{st.textContent=t};
@@ -452,22 +475,59 @@ function loginScreen(auth){
   };
   loop(performance.now());
 }
+/* gabung tiga arah: data terakhir tersinkron (b), data HP (l), data cloud (r) */
+const J=JSON.stringify,eq=(a,b)=>J(a)===J(b),clone=o=>JSON.parse(J(o)),obj=v=>v&&typeof v==='object'&&!Array.isArray(v);
+function merge(b,l,r){
+ if(eq(l,r)||eq(r,b))return l;
+ if(eq(l,b))return r;
+ if(l===undefined)return r;
+ if(r===undefined)return l;
+ if(Array.isArray(l)&&Array.isArray(r)){
+  const map=a=>{const m=new Map(),n={};(a||[]).forEach(x=>{const k=x.id!=null?'i'+x.id:J(x);n[k]=(n[k]||0)+1;m.set(k+'#'+n[k],x)});return m};
+  const B=map(b),L=map(l),R=map(r);
+  return [...new Set([...R.keys(),...L.keys()])].map(i=>merge(B.get(i),L.get(i),R.get(i))).filter(x=>x!==undefined)}
+ if(obj(l)&&obj(r)){const B=obj(b)?b:{},o={};
+  for(const k of new Set([...Object.keys(r),...Object.keys(l)])){
+   const saldo=B[k]!==undefined&&((k==='total'&&l.al)||(k==='amt'&&l.who&&!l.d));
+   const v=saldo?r[k]+l[k]-B[k]:merge(B[k],l[k],r[k]);if(v!==undefined)o[k]=v}
+  return o}
+ return l}
 if(!firebaseConfig.apiKey||firebaseConfig.apiKey==="ISI"){
   const m=overlay('<h3>Firebase belum diisi</h3><div>Isi <b>firebaseConfig</b> di index.html, atau lanjut dulu tanpa cloud (data hanya di perangkat ini).</div><button class="btn" style="background:var(--pri)" id="go">Lanjut tanpa cloud</button>');
   m.querySelector('#go').onclick=()=>{close();say('Mode lokal')};
 }else{
   const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),ref=doc(db,"ledgers","main");
   let unsub=null,timer=null,on=false;
-  window.cloudSave=()=>{if(!on)return;say('\u2601 Menyimpan\u2026');clearTimeout(timer);timer=setTimeout(()=>{setDoc(ref,{json:JSON.stringify(getS()),t:Date.now()}).then(()=>say('\u2601 Tersinkron')).catch(e=>say('\u26a0 Gagal sync: '+e.code))},400)};
+  const BK='catatan-utang-base',norm=o=>{o.loans=o.loans||[];o.sv=o.sv||[];return o};
+  let base=null,remote=null,have=false,busy=false,again;
+  const setBase=o=>{base=clone(o);try{localStorage.setItem(BK,J(base))}catch(e){}};
+  try{base=JSON.parse(localStorage.getItem(BK))}catch(e){}
+  if(!base)setBase(getS());
+  const later=()=>{clearTimeout(again);again=setTimeout(sync,3000)};
+  async function sync(){
+    if(!on||!have||busy)return;
+    if(document.querySelector('.mask:not(#lk):not(#lg)'))return later();
+    if(remote&&eq(getS(),base)){if(!eq(remote,base)){setBase(remote);setS(clone(remote))}say('\u2601 Tersinkron');return}
+    busy=true;say('\u2601 Menyimpan\u2026');
+    try{const sent=clone(getS());
+      const done=await runTransaction(db,async t=>{const s=await t.get(ref),r=s.exists()?norm(JSON.parse(s.data().json)):null,m=r?merge(base,sent,r):sent;t.set(ref,{json:J(m),t:Date.now()});return m});
+      const next=merge(sent,getS(),done);
+      remote=done;setBase(done);if(!eq(next,getS()))setS(clone(next));busy=false;
+      if(eq(next,done))say('\u2601 Tersinkron');else later();
+    }catch(e){busy=false;say('\u26a0 Belum terkirim, tersimpan di HP');later()}
+  }
+  window.cloudSave=()=>{if(!on)return;say(have&&navigator.onLine?'\u2601 Menyimpan\u2026':'\u26a0 Tersimpan di HP, menunggu internet');clearTimeout(timer);timer=setTimeout(sync,400)};
+  addEventListener('online',sync);
   window.cloud={out:()=>signOut(auth),email:()=>auth.currentUser&&auth.currentUser.email};
   onAuthStateChanged(auth,u=>{
     if(unsub){unsub();unsub=null}on=false;
     if(!u){say('Belum masuk');loginScreen(auth);return}
     close();on=true;say('\u2601 Menghubungkan\u2026');
+    have=false;
     unsub=onSnapshot(ref,snap=>{
-      if(snap.metadata.hasPendingWrites)return;
-      if(snap.exists()){try{setS(JSON.parse(snap.data().json));say('\u2601 Tersinkron')}catch(e){say('\u26a0 Data rusak')}}
-      else{setDoc(ref,{json:JSON.stringify(getS()),t:Date.now()}).then(()=>say('\u2601 Tersinkron'))}
+      if(snap.metadata.hasPendingWrites||snap.metadata.fromCache)return;
+      try{remote=snap.exists()?norm(JSON.parse(snap.data().json)):null}catch(e){say('\u26a0 Data rusak');return}
+      have=true;sync();
     },err=>{say('\u26a0 '+err.code);if(err.code==='permission-denied')alert('Akun ini tidak punya izin. Cek daftar email di firestore.rules')});
   });
 }
